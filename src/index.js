@@ -1,25 +1,33 @@
-// src/index.js — King of the Day Bot v2 👑
-// ─────────────────────────────────────────────
+// src/index.js — King of the Day Bot v3 👑 FINAL
 
 require("dotenv").config();
 const { Client, GatewayIntentBits, REST, Routes, EmbedBuilder } = require("discord.js");
 const cron = require("node-cron");
 const db   = require("./database");
-const { commandDefs, handleInteraction } = require("./commands");
-const { runCeremony } = require("./ceremony");
-const { pubCommandDef, handlePubInteraction } = require("./pubCommands");
-const { startAllSchedulers } = require("./pubScheduler");
 
-// ── Vérification config ───────────────────────────────────────────────────
+const { commandDefs, handleInteraction }                                    = require("./commands");
+const { runCeremony }                                                        = require("./ceremony");
+const { pubCommandDef, handlePubInteraction }                               = require("./pubCommands");
+const { startAllSchedulers }                                                 = require("./pubScheduler");
+const { setupCommandDef, handleSetup, handleSetupInteraction, isSetupInteraction, loadConfig } = require("./setupCommands");
+const { animeCommandDef, handleAnimeCommand, handleAnimeVote, startAnimeScheduler } = require("./animeSmash");
+const { beauteCommandDef, handleBeauteCommand, handleBeauteVote, handleBeauteModal } = require("./beauteSmash");
+const { handleAnimalDetection }                                             = require("./animalDetector");
+const { warCommandDef, handleWarCommand, handleWarMessage, handleWarButton, runWarCeremony } = require("./animalWar");
+const { guildCommandDef, handleGuildCommand, handleCreateModal, handleJoinButton, addGuildXP, runGuildCeremony } = require("./guilds");
+const { monkeyCommandDef, handleMonkeyCommand, handleMonkeyVote, launchMonkeyVote, runMonkeyCeremony } = require("./monkey");
+const { coupleCommandDef, handleCoupleCommand, handleCoupleVote, launchCoupleVote, runCoupleCeremony } = require("./couple");
+const { quizCommandDef, handleQuizCommand, postDailyQuiz, checkQuizAnswer } = require("./animeQuiz");
+const { connectMongo }                                                       = require("./mongodb");
+
 for (const key of ["DISCORD_TOKEN", "GUILD_ID", "KING_ROLE_ID", "ANNOUNCE_CHANNEL_ID"]) {
   if (!process.env[key]) { console.error(`❌  Manquant dans .env : ${key}`); process.exit(1); }
 }
 
-const XP_AMOUNT   = parseInt(process.env.XP_PER_MESSAGE    || "15");
-const XP_COOLDOWN = parseInt(process.env.XP_COOLDOWN_SECONDS || "60") * 1000;
-const CROWN_HOUR  = parseInt(process.env.CROWN_HOUR        || "20");
+const XP_AMOUNT   = () => parseInt(process.env.XP_PER_MESSAGE    || "15");
+const XP_COOLDOWN = () => parseInt(process.env.XP_COOLDOWN_SECONDS || "60") * 1000;
+const CROWN_HOUR  = parseInt(process.env.CROWN_HOUR || "20");
 
-// ── Client ────────────────────────────────────────────────────────────────
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -31,89 +39,168 @@ const client = new Client({
 
 const cooldowns = new Map();
 
-// ── Enregistrement des commandes slash ────────────────────────────────────
 async function registerCommands() {
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
   try {
     console.log("📡 Enregistrement des commandes slash...");
-    await rest.put(
-      Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID),
-      { body: [...commandDefs, pubCommandDef] }
-    );
-    console.log(`✅  ${commandDefs.length} commandes slash enregistrées !`);
+    const allCommands = [
+      ...commandDefs,
+      pubCommandDef, setupCommandDef,
+      animeCommandDef, beauteCommandDef,
+      warCommandDef, guildCommandDef,
+      monkeyCommandDef, coupleCommandDef,
+      quizCommandDef,
+    ];
+    await rest.put(Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID), { body: allCommands });
+    console.log(`✅  ${allCommands.length} commandes slash enregistrées !`);
   } catch (err) {
     console.error("❌  Commandes :", err.message);
   }
 }
 
-// ── Ready ─────────────────────────────────────────────────────────────────
-client.once("ready", async () => {
-  console.log(`\n👑  King of the Day Bot v2 — connecté en tant que ${client.user.tag}`);
+client.once("clientReady", async () => {
+  console.log(`\n👑  King of the Day Bot v3 FINAL — ${client.user.tag}`);
   console.log(`⏰  Couronnement : vendredi à ${CROWN_HOUR}h00 (Paris)\n`);
+
+  // Connexion MongoDB
+  await connectMongo();
 
   await registerCommands();
 
-  // Couronnement chaque vendredi à l'heure configurée
-  cron.schedule(`0 ${CROWN_HOUR} * * 5`, () => {
-    console.log("[CRON] 👑 Couronnement !");
-    runCeremony(client);
+  // ── CRONS ──────────────────────────────────────────────────────────────
+
+  // Vendredi soir — Grand Event
+  cron.schedule(`0 ${CROWN_HOUR} * * 5`, async () => {
+    const cfg = loadConfig();
+    console.log("[CRON] 👑 Grand Event du Vendredi !");
+    await runCeremony(client);
+    await runWarCeremony(client, cfg);
+    await runGuildCeremony(client, cfg);
+    await runMonkeyCeremony(client, cfg);
+    await runCoupleCeremony(client, cfg);
   }, { timezone: "Europe/Paris" });
 
-  // Démarrer les pubs programmées existantes
+  // Jeudi soir 20h — Vote final singe + couple
+  cron.schedule("0 20 * * 4", async () => {
+    const cfg = loadConfig();
+    console.log("[CRON] 🗳️ Lancement votes finaux !");
+    await launchMonkeyVote(client, cfg);
+    await launchCoupleVote(client, cfg);
+  }, { timezone: "Europe/Paris" });
+
+  // Chaque jour 10h — Quiz anime
+  cron.schedule("0 10 * * *", async () => {
+    const cfg = loadConfig();
+    await postDailyQuiz(client, cfg);
+  }, { timezone: "Europe/Paris" });
+
+  // Démarrer les pubs
   startAllSchedulers(client);
+
+  // Démarrer anime smash or pass
+  const cfg = loadConfig();
+  if (cfg.animeChannelId && cfg.animeIntervalHours) startAnimeScheduler(client, cfg);
+
+  console.log("✅ Bot v3 FINAL prêt — toutes les fonctionnalités actives !");
 });
 
-// ── Gain d'XP ─────────────────────────────────────────────────────────────
+// ── MESSAGES ───────────────────────────────────────────────────────────────
 client.on("messageCreate", async (message) => {
-  if (message.author.bot)  return;
-  if (!message.guild)      return;
+  if (message.author.bot || !message.guild) return;
   if (message.guild.id !== process.env.GUILD_ID) return;
 
-  const userId = message.author.id;
-  const now    = Date.now();
-  if ((now - (cooldowns.get(userId) || 0)) < XP_COOLDOWN) return;
+  const cfg     = loadConfig();
+  const excluded = cfg.excludedChannels || [];
+  const userId  = message.author.id;
+  const now     = Date.now();
 
-  cooldowns.set(userId, now);
-  const result = db.addXP(userId, XP_AMOUNT);
+  if (!excluded.includes(message.channelId)) {
+    if ((now - (cooldowns.get(userId) || 0)) >= XP_COOLDOWN()) {
+      cooldowns.set(userId, now);
+      const result = db.addXP(userId, XP_AMOUNT());
+      addGuildXP(userId, XP_AMOUNT()); // XP pour la guilde aussi
 
-  // 🎉 Notification de level-up (ephemeral-style dans le salon)
-  if (result.levelUp) {
-    const embed = new EmbedBuilder()
-      .setColor(0xFFD700)
-      .setDescription(
-        `⬆️  <@${userId}> vient de passer **Niveau ${result.newLevel}** ! 🎉`
-      );
-    message.channel.send({ embeds: [embed] }).catch(() => {});
+      if (result.levelUp) {
+        message.channel.send({ embeds: [new EmbedBuilder().setColor(0xFFD700).setDescription(`⬆️ <@${userId}> vient de passer **Niveau ${result.newLevel}** ! 🎉`)] }).catch(() => {});
+      }
+      if (result.newXp % 500 === 0 && result.newXp > 0) {
+        message.channel.send(`⚡ <@${userId}> atteint **${result.newXp} XP** cette semaine ! 🔥`).catch(() => {});
+      }
+    }
   }
 
-  // Milestone XP tous les 500
-  if (result.newXp % 500 === 0 && result.newXp > 0) {
-    message.channel.send(
-      `⚡ <@${userId}> atteint **${result.newXp} XP** cette semaine ! 🔥`
-    ).catch(() => {});
+  // 🐾 Animaux
+  await handleAnimalDetection(message);
+
+  // ⚔️ Guerre chien vs chat
+  await handleWarMessage(message);
+
+  // 🎌 Quiz anime
+  if (cfg.animeChannelId && message.channelId === cfg.animeChannelId) {
+    await checkQuizAnswer(message, (uid, xp) => db.addXP(uid, xp));
   }
 });
 
-// ── Interactions (commandes slash + boutons) ──────────────────────────────
+// ── INTERACTIONS ───────────────────────────────────────────────────────────
 client.on("interactionCreate", async (interaction) => {
-  // Router vers le système pub si c'est une commande /pub ou une interaction pub
-  const isPubCommand = interaction.isChatInputCommand() && interaction.commandName === "pub";
-  const isPubInteraction =
-    (interaction.isChannelSelectMenu() && interaction.customId === "pub_select_channel") ||
-    (interaction.isModalSubmit()       && interaction.customId.startsWith("pub_modal_")) ||
-    (interaction.isStringSelectMenu()  && interaction.customId === "pub_action_select")  ||
-    (interaction.isButton()            && (interaction.customId.startsWith("send_now_") || interaction.customId === "pub_créer_shortcut"));
+  try {
+    const cfg = loadConfig();
 
-  if (isPubCommand || isPubInteraction) {
-    return handlePubInteraction(interaction, client).catch(console.error);
+    // Setup
+    if (isSetupInteraction(interaction)) {
+      return interaction.isChatInputCommand() ? handleSetup(interaction) : handleSetupInteraction(interaction);
+    }
+
+    // Pub
+    const isPubCmd = interaction.isChatInputCommand() && interaction.commandName === "pub";
+    const isPubInt = (interaction.isChannelSelectMenu() && interaction.customId === "pub_select_channel") ||
+      (interaction.isModalSubmit() && interaction.customId.startsWith("pub_modal_")) ||
+      (interaction.isStringSelectMenu() && interaction.customId === "pub_action_select") ||
+      (interaction.isButton() && (interaction.customId.startsWith("send_now_") || interaction.customId === "pub_créer_shortcut"));
+    if (isPubCmd || isPubInt) return handlePubInteraction(interaction, client);
+
+    // Anime Smash or Pass
+    if (interaction.isChatInputCommand() && interaction.commandName === "anime") return handleAnimeCommand(interaction, cfg);
+    if (interaction.isButton() && interaction.customId.startsWith("anime_")) return handleAnimeVote(interaction);
+
+    // Beauté Smash or Pass
+    if (interaction.isChatInputCommand() && interaction.commandName === "beaute") return handleBeauteCommand(interaction, cfg);
+    if (interaction.isButton() && interaction.customId.startsWith("beaute_")) return handleBeauteVote(interaction);
+    if (interaction.isModalSubmit() && interaction.customId === "beaute_submit_modal") return handleBeauteModal(interaction, cfg);
+
+    // Guerre chien vs chat
+    if (interaction.isChatInputCommand() && interaction.commandName === "guerre") return handleWarCommand(interaction);
+    if (interaction.isButton() && interaction.customId.startsWith("war_join_")) return handleWarButton(interaction);
+
+    // Guildes
+    if (interaction.isChatInputCommand() && interaction.commandName === "guilde") {
+      const userXP = db.getUser(interaction.user.id);
+      const level  = userXP?.level || 0;
+      return handleGuildCommand(interaction, level);
+    }
+    if (interaction.isModalSubmit() && interaction.customId === "guild_create_modal") return handleCreateModal(interaction);
+    if (interaction.isButton() && interaction.customId.startsWith("guild_join_")) return handleJoinButton(interaction);
+
+    // Singe
+    if (interaction.isChatInputCommand() && interaction.commandName === "singe") return handleMonkeyCommand(interaction);
+    if (interaction.isButton() && interaction.customId.startsWith("monkey_vote_")) return handleMonkeyVote(interaction);
+
+    // Couple
+    if (interaction.isChatInputCommand() && interaction.commandName === "couple") return handleCoupleCommand(interaction);
+    if (interaction.isButton() && interaction.customId.startsWith("couple_vote_")) return handleCoupleVote(interaction);
+
+    // Quiz
+    if (interaction.isChatInputCommand() && interaction.commandName === "quiz") return handleQuizCommand(interaction, cfg);
+
+    // King of the Day (base)
+    return handleInteraction(interaction);
+
+  } catch (err) {
+    console.error("[INTERACTION ERROR]", err);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: "❌ Une erreur s'est produite !", ephemeral: true }).catch(() => {});
+    }
   }
-
-  // Sinon router vers les commandes King of the Day
-  return handleInteraction(interaction);
 });
 
-// ── Login ─────────────────────────────────────────────────────────────────
-client.login(process.env.DISCORD_TOKEN).catch(err => {
-  console.error("❌  Login :", err.message);
-  process.exit(1);
-});
+client.login(process.env.DISCORD_TOKEN).catch(err => { console.error("❌  Login :", err.message); process.exit(1); });
