@@ -56,6 +56,7 @@ function detectTeamWord(content) {
 
 // ── Handler message pour guerre ───────────────────────────────────────────
 async function handleWarMessage(message) {
+  if (message.author.bot) return false;
   const teamWord = detectTeamWord(message.content);
   if (!teamWord) return false;
 

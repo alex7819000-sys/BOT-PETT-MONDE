@@ -12,13 +12,14 @@ const { startAllSchedulers }                                                 = r
 const { setupCommandDef, handleSetup, handleSetupInteraction, isSetupInteraction, loadConfig } = require("./setupCommands");
 const { animeCommandDef, handleAnimeCommand, handleAnimeVote, startAnimeScheduler } = require("./animeSmash");
 const { beauteCommandDef, handleBeauteCommand, handleBeauteVote, handleBeauteModal } = require("./beauteSmash");
-const { handleAnimalDetection }                                             = require("./animalDetector");
+const { handleAnimalDetection, catCommandDef, dogCommandDef, handleCatCommand, handleDogCommand } = require("./animalDetector");
 const { warCommandDef, handleWarCommand, handleWarMessage, handleWarButton, runWarCeremony } = require("./animalWar");
 const { guildCommandDef, handleGuildCommand, handleCreateModal, handleJoinButton, addGuildXP, runGuildCeremony } = require("./guilds");
-const { monkeyCommandDef, handleMonkeyCommand, handleMonkeyVote, launchMonkeyVote, runMonkeyCeremony } = require("./monkey");
+const { monkeyCommandDef, handleMonkeyCommand, handleMonkeyVote, launchMonkeyVote, runMonkeyCeremony, releaseMonkey, checkMonkeyMessage } = require("./monkey");
 const { coupleCommandDef, handleCoupleCommand, handleCoupleVote, launchCoupleVote, runCoupleCeremony } = require("./couple");
 const { quizCommandDef, handleQuizCommand, postDailyQuiz, checkQuizAnswer } = require("./animeQuiz");
 const { connectMongo }                                                       = require("./mongodb");
+const { bumpCommandDef, handleBumpCommand, handleBumpDetection, startBumpScheduler } = require("./bump");
 
 for (const key of ["DISCORD_TOKEN", "GUILD_ID", "KING_ROLE_ID", "ANNOUNCE_CHANNEL_ID"]) {
   if (!process.env[key]) { console.error(`❌  Manquant dans .env : ${key}`); process.exit(1); }
@@ -50,6 +51,8 @@ async function registerCommands() {
       warCommandDef, guildCommandDef,
       monkeyCommandDef, coupleCommandDef,
       quizCommandDef,
+      bumpCommandDef,
+      catCommandDef, dogCommandDef,
     ];
     await rest.put(Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID), { body: allCommands });
     console.log(`✅  ${allCommands.length} commandes slash enregistrées !`);
@@ -76,7 +79,8 @@ client.once("clientReady", async () => {
     await runCeremony(client);
     await runWarCeremony(client, cfg);
     await runGuildCeremony(client, cfg);
-    await runMonkeyCeremony(client, cfg);
+    await releaseMonkey(client, cfg); // Libérer l'ancien singe
+    await runMonkeyCeremony(client, cfg); // Élire le nouveau
     await runCoupleCeremony(client, cfg);
   }, { timezone: "Europe/Paris" });
 
@@ -100,6 +104,7 @@ client.once("clientReady", async () => {
   // Démarrer anime smash or pass
   const cfg = loadConfig();
   if (cfg.animeChannelId && cfg.animeIntervalHours) startAnimeScheduler(client, cfg);
+  startBumpScheduler(client, cfg);
 
   console.log("✅ Bot v3 FINAL prêt — toutes les fonctionnalités actives !");
 });
@@ -130,10 +135,16 @@ client.on("messageCreate", async (message) => {
   }
 
   // 🐾 Animaux
+  // 🐒 Vérifier que le singe dit "singe"
+  await checkMonkeyMessage(message, (uid, xp) => db.addXP(uid, xp));
+
   await handleAnimalDetection(message);
 
   // ⚔️ Guerre chien vs chat
   await handleWarMessage(message);
+
+  // 🚀 Détection bump Disboard
+  await handleBumpDetection(message, (uid, xp) => db.addXP(uid, xp));
 
   // 🎌 Quiz anime
   if (cfg.animeChannelId && message.channelId === cfg.animeChannelId) {
@@ -175,7 +186,7 @@ client.on("interactionCreate", async (interaction) => {
     // Guildes
     if (interaction.isChatInputCommand() && interaction.commandName === "guilde") {
       const userXP = db.getUser(interaction.user.id);
-      const level  = userXP?.level || 0;
+      const level  = userXP ? db.getLevelFromXP(userXP.totalXp || 0) : 0;
       return handleGuildCommand(interaction, level);
     }
     if (interaction.isModalSubmit() && interaction.customId === "guild_create_modal") return handleCreateModal(interaction);
@@ -191,6 +202,13 @@ client.on("interactionCreate", async (interaction) => {
 
     // Quiz
     if (interaction.isChatInputCommand() && interaction.commandName === "quiz") return handleQuizCommand(interaction, cfg);
+
+    // Cat & Dog
+    if (interaction.isChatInputCommand() && interaction.commandName === "cat") return handleCatCommand(interaction);
+    if (interaction.isChatInputCommand() && interaction.commandName === "dog") return handleDogCommand(interaction);
+
+    // Bump stats
+    if (interaction.isChatInputCommand() && interaction.commandName === "bumpstats") return handleBumpCommand(interaction);
 
     // King of the Day (base)
     return handleInteraction(interaction);

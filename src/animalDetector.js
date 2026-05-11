@@ -1,6 +1,6 @@
 // src/animalDetector.js — Détection de mots et réponse avec photo d'animal
 
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, SlashCommandBuilder } = require("discord.js");
 
 // ── Mots déclencheurs ─────────────────────────────────────────────────────
 const TRIGGERS = {
@@ -101,4 +101,42 @@ async function handleAnimalDetection(message) {
   return true;
 }
 
-module.exports = { handleAnimalDetection };
+// ── Commandes /cat /dog ───────────────────────────────────────────────────
+const catCommandDef = new SlashCommandBuilder()
+  .setName("cat")
+  .setDescription("🐱 Affiche un chat aléatoire !")
+  .toJSON();
+
+const dogCommandDef = new SlashCommandBuilder()
+  .setName("dog")
+  .setDescription("🐶 Affiche un chien aléatoire !")
+  .toJSON();
+
+async function handleCatCommand(interaction) {
+  await interaction.deferReply();
+  const result = await fetchAnimalImage("chat");
+  if (!result?.url) return interaction.editReply("❌ Impossible de trouver un chat... réessaie !");
+
+  const embed = new EmbedBuilder()
+    .setColor(0xFF69B4)
+    .setTitle("🐱 Miaou !")
+    .setImage(result.url)
+    .setFooter({ text: "🐱 Team Chat • /guerre pour rejoindre !" });
+
+  await interaction.editReply({ embeds: [embed] });
+}
+
+async function handleDogCommand(interaction) {
+  await interaction.deferReply();
+  const result = await fetchAnimalImage("chien");
+  if (!result?.url) return interaction.editReply("❌ Impossible de trouver un chien... réessaie !");
+
+  const embed = new EmbedBuilder()
+    .setColor(0x8B4513)
+    .setTitle("🐶 Woaf !")
+    .setImage(result.url)
+    .setFooter({ text: "🐶 Team Chien • /guerre pour rejoindre !" });
+
+  await interaction.editReply({ embeds: [embed] });
+}
+

@@ -63,9 +63,10 @@ async function postAnimeCharacter(client, channelId) {
 
   const db = loadAnimeDB();
 
-  // Initialiser les votes pour ce personnage
-  db.votes[char.id] = db.votes[char.id] || { smash: [], pass: [] };
-  const votes = db.votes[char.id];
+  // Utiliser un ID court pour éviter la limite Discord des 100 caractères
+  const shortId = String(char.id).slice(-8);
+  db.votes[shortId] = db.votes[shortId] || { smash: [], pass: [] };
+  const votes = db.votes[shortId];
 
   const embed = new EmbedBuilder()
     .setColor(0xFF69B4)
@@ -82,23 +83,22 @@ async function postAnimeCharacter(client, channelId) {
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`anime_smash_${char.id}`)
+      .setCustomId(`anime_smash_${shortId}`)
       .setLabel(`💚 Smash (${votes.smash.length})`)
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId(`anime_pass_${char.id}`)
+      .setCustomId(`anime_pass_${shortId}`)
       .setLabel(`💔 Pass (${votes.pass.length})`)
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
-      .setCustomId(`anime_stats_${char.id}`)
+      .setCustomId(`anime_stats_${shortId}`)
       .setLabel("📊 Stats")
       .setStyle(ButtonStyle.Secondary),
   );
 
   const msg = await channel.send({ embeds: [embed], components: [row] });
 
-  // Sauvegarder l'historique
-  db.history.unshift({ charId: char.id, name: char.name, image: char.image, animes: char.animes, messageId: msg.id, channelId, timestamp: Date.now() });
+  db.history.unshift({ charId: shortId, name: char.name, image: char.image, animes: char.animes, messageId: msg.id, channelId, timestamp: Date.now() });
   db.history = db.history.slice(0, 50); // Garder les 50 derniers
   db.lastPosted = Date.now();
   saveAnimeDB(db);
@@ -110,7 +110,7 @@ async function postAnimeCharacter(client, channelId) {
 async function handleAnimeVote(interaction) {
   const parts  = interaction.customId.split("_");
   const action = parts[1]; // smash, pass, stats
-  const charId = parseInt(parts[2]);
+  const charId = parts[2]; // Garder en string pour éviter les problèmes de nombre trop grand
 
   const db    = loadAnimeDB();
   const votes = db.votes[charId] || { smash: [], pass: [] };
@@ -162,7 +162,6 @@ async function handleAnimeVote(interaction) {
   db.votes[charId] = votes;
   saveAnimeDB(db);
 
-  // Mettre à jour le message
   const total = votes.smash.length + votes.pass.length;
   const smashPct = total ? Math.round((votes.smash.length / total) * 100) : 0;
 
