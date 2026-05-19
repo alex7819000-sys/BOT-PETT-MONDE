@@ -140,3 +140,4 @@ async function handleDogCommand(interaction) {
   await interaction.editReply({ embeds: [embed] });
 }
 
+module.exports = { handleAnimalDetection, catCommandDef, dogCommandDef, handleCatCommand, handleDogCommand };

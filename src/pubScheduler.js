@@ -9,7 +9,7 @@ const activeCrons = new Map();
 
 // ── Construire l'embed pub ─────────────────────────────────────────────────
 function buildPubEmbed(pub) {
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(0x5865F2)
     .setAuthor({
       name: "CVForge",
@@ -23,6 +23,13 @@ function buildPubEmbed(pub) {
     })
     .setFooter({ text: "CVForge • Votre CV, votre avenir" })
     .setTimestamp();
+
+  // Ajouter l'image si elle existe
+  if (pub.imageUrl && pub.imageUrl.startsWith("http")) {
+    embed.setImage(pub.imageUrl);
+  }
+
+  return embed;
 }
 
 function buildPubRow(pub) {
@@ -37,7 +44,24 @@ function buildPubRow(pub) {
 // ── Envoyer une pub maintenant ─────────────────────────────────────────────
 async function sendPub(client, pub) {
   try {
-    const guild   = await client.guilds.fetch(process.env.GUILD_ID);
+    const guild = await client.guilds.fetch(process.env.GUILD_ID);
+
+    // Cas "ALL" — envoyer dans tous les salons textuels
+    if (pub.channelId === "ALL") {
+      const textChannels = guild.channels.cache.filter(c =>
+        c.type === 0 && // GuildText
+        c.permissionsFor(guild.members.me)?.has("SendMessages")
+      );
+
+      for (const [, channel] of textChannels) {
+        await channel.send({ embeds: [buildPubEmbed(pub)], components: [buildPubRow(pub)] }).catch(() => {});
+      }
+      pubDb.markSent(pub.id);
+      console.log(`[PUB] ✅ Pub #${pub.id} envoyée dans ${textChannels.size} salons`);
+      return;
+    }
+
+    // Cas salon unique
     const channel = guild.channels.cache.get(pub.channelId);
     if (!channel) return;
 

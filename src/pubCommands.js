@@ -26,16 +26,23 @@ const pubCommandDef = new SlashCommandBuilder()
 // ── /pub créer ─────────────────────────────────────────────────────────────
 // Étape 1 : sélecteur de salon
 async function handlePubCreer(interaction) {
-  const row = new ActionRowBuilder().addComponents(
+  const rowChannel = new ActionRowBuilder().addComponents(
     new ChannelSelectMenuBuilder()
       .setCustomId("pub_select_channel")
       .setPlaceholder("Choisir le salon où poster la pub")
       .addChannelTypes(ChannelType.GuildText)
   );
 
+  const rowAll = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("pub_select_all_channels")
+      .setLabel("📢 Tous les salons")
+      .setStyle(ButtonStyle.Primary),
+  );
+
   await interaction.reply({
-    content: "**Étape 1/2** — Dans quel salon veux-tu poster cette pub ?",
-    components: [row],
+    content: "**Étape 1/2** — Dans quel salon veux-tu poster cette pub ?\n\n💡 Clique **Tous les salons** pour poster dans tous les salons textuels, ou choisis un salon spécifique.",
+    components: [rowChannel, rowAll],
     ephemeral: true,
   });
 }
@@ -62,7 +69,7 @@ async function handlePubListe(interaction) {
       : "⚠️ Pas de schedule";
 
     embed.addFields({
-      name: `${pub.active ? "🟢" : "🔴"} Pub #${pub.id.slice(-5)} — <#${pub.channelId}>`,
+      name: `${pub.active ? "🟢" : "🔴"} Pub #${pub.id.slice(-5)} — ${pub.channelId === "ALL" ? "📢 Tous les salons" : `<#${pub.channelId}>`}`,
       value:
         `📝 ${pub.description.slice(0, 80)}${pub.description.length > 80 ? "…" : ""}\n` +
         `🔗 ${pub.lien}\n` +
@@ -72,18 +79,24 @@ async function handlePubListe(interaction) {
   }
 
   // Boutons de gestion
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("pub_manage_menu")
-      .setLabel("⚙️ Gérer une pub")
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId("pub_créer_shortcut")
-      .setLabel("➕ Nouvelle pub")
-      .setStyle(ButtonStyle.Success),
-  );
+  const rows = [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("pub_manage_menu")
+        .setLabel("⚙️ Gérer une pub")
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId("pub_créer_shortcut")
+        .setLabel("➕ Nouvelle pub")
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId("pub_toggle_all")
+        .setLabel(pubs.some(p => p.active) ? "⏸️ Tout désactiver" : "▶️ Tout activer")
+        .setStyle(pubs.some(p => p.active) ? ButtonStyle.Danger : ButtonStyle.Success),
+    )
+  ];
 
-  await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+  await interaction.reply({ embeds: [embed], components: rows, ephemeral: true });
 }
 
 // ── /pub supprimer / pause / relancer ─────────────────────────────────────
@@ -151,21 +164,30 @@ function buildPubModal(channelId) {
           .setPlaceholder("cvforge.uk")
           .setValue("cvforge.uk")
           .setRequired(true)
-          .setMaxLength(100)
+          .setMaxLength(200)
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
           .setCustomId("pub_description")
           .setLabel("📝 Message de la pub")
           .setStyle(TextInputStyle.Paragraph)
-          .setPlaceholder("Ex: Besoin d'un CV professionnel ? CVForge te permet de créer un CV en 5 minutes, simple et gratuit ! 🚀")
+          .setPlaceholder("Ex: Besoin d'un CV professionnel ? CVForge te permet de créer un CV en 5 minutes ! 🚀")
           .setRequired(true)
           .setMaxLength(500)
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
+          .setCustomId("pub_image")
+          .setLabel("🖼️ Lien image/bannière (optionnel)")
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder("https://i.imgur.com/ta-banniere.png")
+          .setRequired(false)
+          .setMaxLength(300)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
           .setCustomId("pub_schedule")
-          .setLabel("⏰ Heure précise OU intervalle (optionnel)")
+          .setLabel("⏰ Heure précise OU intervalle en minutes")
           .setStyle(TextInputStyle.Short)
           .setPlaceholder("Ex: 20:30  OU  60 (= toutes les 60 min)")
           .setRequired(false)
@@ -188,6 +210,39 @@ async function handlePubInteraction(interaction, client) {
     if (sub === "envoyer")   return handlePubEnvoyer(interaction);
   }
 
+  // ── Bouton toggle all pubs ────────────────────────────────────────────
+  if (interaction.isButton() && interaction.customId === "pub_toggle_all") {
+    const pubs   = pubDb.getAllPubs();
+    const anyActive = pubs.some(p => p.active);
+
+    for (const pub of pubs) {
+      if (anyActive) {
+        pubDb.pausePub(pub.id);
+        stopPub(pub.id);
+      } else {
+        pubDb.resumePub(pub.id);
+        schedulePub(client, pubDb.getPubById(pub.id));
+      }
+    }
+
+    return interaction.update({
+      embeds: [new EmbedBuilder()
+        .setColor(anyActive ? 0xFF4444 : 0x00FF88)
+        .setDescription(anyActive
+          ? `⏸️ **Toutes les pubs sont désactivées** — Utilise \`/pub liste\` pour les réactiver individuellement`
+          : `▶️ **Toutes les pubs sont réactivées !**`
+        )
+      ],
+      components: []
+    });
+  }
+
+  // ── Bouton "Tous les salons" ──────────────────────────────────────────
+  if (interaction.isButton() && interaction.customId === "pub_select_all_channels") {
+    const modal = buildPubModal("ALL");
+    return interaction.showModal(modal);
+  }
+
   // ── Sélecteur de salon (étape 1) ─────────────────────────────────────
   if (interaction.isChannelSelectMenu() && interaction.customId === "pub_select_channel") {
     const channelId = interaction.values[0];
@@ -200,6 +255,7 @@ async function handlePubInteraction(interaction, client) {
     const channelId    = interaction.customId.replace("pub_modal_", "");
     const lien         = interaction.fields.getTextInputValue("pub_lien").trim();
     const description  = interaction.fields.getTextInputValue("pub_description").trim();
+    const imageUrl     = interaction.fields.getTextInputValue("pub_image").trim() || null;
     const scheduleRaw  = interaction.fields.getTextInputValue("pub_schedule").trim();
 
     let scheduledTime   = null;
@@ -216,7 +272,7 @@ async function handlePubInteraction(interaction, client) {
     }
 
     const pub = pubDb.createPub({
-      channelId, lien, description, scheduledTime, intervalMinutes,
+      channelId, lien, description, imageUrl, scheduledTime, intervalMinutes,
       createdBy: interaction.user.id,
     });
 

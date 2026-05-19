@@ -98,6 +98,17 @@ async function postAnimeCharacter(client, channelId) {
 
   const msg = await channel.send({ embeds: [embed], components: [row] });
 
+  // Créer un thread pour les discussions
+  try {
+    await msg.startThread({
+      name: `💬 ${char.name} — Smash ou Pass ?`,
+      autoArchiveDuration: 1440, // Archive après 24h d'inactivité
+      reason: "Thread discussion Smash or Pass"
+    });
+  } catch (err) {
+    console.log("[ANIME] Thread non créé (salon pas compatible):", err.message);
+  }
+
   db.history.unshift({ charId: shortId, name: char.name, image: char.image, animes: char.animes, messageId: msg.id, channelId, timestamp: Date.now() });
   db.history = db.history.slice(0, 50); // Garder les 50 derniers
   db.lastPosted = Date.now();

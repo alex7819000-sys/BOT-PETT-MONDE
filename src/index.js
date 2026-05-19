@@ -3,6 +3,7 @@
 require("dotenv").config();
 const { Client, GatewayIntentBits, REST, Routes, EmbedBuilder } = require("discord.js");
 const cron = require("node-cron");
+const http = require("http"); // Pour satisfaire Render
 const db   = require("./database");
 
 const { commandDefs, handleInteraction }                                    = require("./commands");
@@ -40,20 +41,35 @@ const client = new Client({
 
 const cooldowns = new Map();
 
+// ── Serveur HTTP pour Render (évite "No open ports") ─────────────────────
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => res.end("BOT PETIT MONDE — Online ✅")).listen(PORT, () => {
+  console.log(`🌐 Serveur HTTP démarré sur port ${PORT}`);
+});
+
+// ── Nettoyer les options vides dans les commandes ─────────────────────────
+function cleanCommand(cmd) {
+  const obj = JSON.parse(JSON.stringify(cmd));
+  function clean(o) {
+    if (o.options && o.options.length === 0) delete o.options;
+    if (o.options) o.options.forEach(clean);
+  }
+  clean(obj);
+  return obj;
+}
+
 async function registerCommands() {
   const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
   try {
     console.log("📡 Enregistrement des commandes slash...");
     const allCommands = [
-      ...commandDefs,
-      pubCommandDef, setupCommandDef,
+      ...commandDefs, pubCommandDef, setupCommandDef,
       animeCommandDef, beauteCommandDef,
       warCommandDef, guildCommandDef,
       monkeyCommandDef, coupleCommandDef,
-      quizCommandDef,
-      bumpCommandDef,
+      quizCommandDef, bumpCommandDef,
       catCommandDef, dogCommandDef,
-    ];
+    ].map(cleanCommand);
     await rest.put(Routes.applicationGuildCommands(client.user.id, process.env.GUILD_ID), { body: allCommands });
     console.log(`✅  ${allCommands.length} commandes slash enregistrées !`);
   } catch (err) {
@@ -103,7 +119,13 @@ client.once("clientReady", async () => {
 
   // Démarrer anime smash or pass
   const cfg = loadConfig();
-  if (cfg.animeChannelId && cfg.animeIntervalHours) startAnimeScheduler(client, cfg);
+  // Démarrer anime smash or pass — lire depuis env si config vide
+  const animeChannelId    = cfg.animeChannelId    || process.env.ANIME_CHANNEL_ID;
+  const animeIntervalHours = cfg.animeIntervalHours || parseInt(process.env.ANIME_INTERVAL_HOURS || "6");
+  if (animeChannelId) {
+    startAnimeScheduler(client, { animeChannelId, animeIntervalHours });
+    console.log(`[ANIME] ✅ Scheduler démarré — salon ${animeChannelId} toutes les ${animeIntervalHours}h`);
+  }
   startBumpScheduler(client, cfg);
 
   console.log("✅ Bot v3 FINAL prêt — toutes les fonctionnalités actives !");
@@ -167,7 +189,12 @@ client.on("interactionCreate", async (interaction) => {
     const isPubInt = (interaction.isChannelSelectMenu() && interaction.customId === "pub_select_channel") ||
       (interaction.isModalSubmit() && interaction.customId.startsWith("pub_modal_")) ||
       (interaction.isStringSelectMenu() && interaction.customId === "pub_action_select") ||
-      (interaction.isButton() && (interaction.customId.startsWith("send_now_") || interaction.customId === "pub_créer_shortcut"));
+      (interaction.isButton() && (
+        interaction.customId.startsWith("send_now_") ||
+        interaction.customId === "pub_créer_shortcut" ||
+        interaction.customId === "pub_select_all_channels" ||
+        interaction.customId === "pub_toggle_all"
+      ));
     if (isPubCmd || isPubInt) return handlePubInteraction(interaction, client);
 
     // Anime Smash or Pass
