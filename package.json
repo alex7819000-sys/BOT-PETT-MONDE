@@ -1,16 +1,17 @@
 {
-  "name": "king-of-the-day-bot",
-  "version": "1.0.0",
-  "description": "Bot Discord - King of the Day 👑",
+  "name": "king-bot-v4",
+  "version": "4.0.0",
+  "description": "Bot Discord PETIT MONDE — v4 optimisé",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
+    "axios": "^1.7.2",
     "discord.js": "^14.14.1",
     "dotenv": "^16.4.5",
-    "mongodb": "^7.2.0",
+    "mongoose": "^8.5.1",
     "node-cron": "^3.0.3"
   },
   "devDependencies": {
