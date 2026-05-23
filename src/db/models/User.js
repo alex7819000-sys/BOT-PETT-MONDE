@@ -33,6 +33,7 @@ const userSchema = new Schema({
   // Semaine
   weekXp:        { type: Number, default: 0 },    // XP gagné cette semaine (pour King)
   weekNumber:    { type: Number, default: 0 },    // numéro de semaine courante
+  weekYear:      { type: Number, default: 0 },    // année de la semaine courante
 }, {
   timestamps: true,
   indexes: [{ userId: 1, guildId: 1 }, { unique: true }],

@@ -1,3 +1,5 @@
+'use strict';
+const axios = require('axios');
 // src/config/constants.js — Toutes les constantes centralisées
 'use strict';
 
@@ -69,18 +71,18 @@ const EMOJIS = {
 
 // Animal APIs gratuites
 const ANIMAL_APIS = {
-  dog:      () => fetch('https://dog.ceo/api/breeds/image/random').then(r => r.json()).then(d => ({ image: d.message, name: 'Chien', emoji: '🐶' })),
-  cat:      () => fetch('https://api.thecatapi.com/v1/images/search').then(r => r.json()).then(d => ({ image: d[0].url, name: 'Chat', emoji: '🐱' })),
-  fox:      () => fetch('https://randomfox.ca/floof/').then(r => r.json()).then(d => ({ image: d.image, name: 'Renard', emoji: '🦊' })),
-  panda:    () => fetch('https://some-random-api.com/animal/panda').then(r => r.json()).then(d => ({ image: d.image, name: 'Panda', emoji: '🐼' })),
-  koala:    () => fetch('https://some-random-api.com/animal/koala').then(r => r.json()).then(d => ({ image: d.image, name: 'Koala', emoji: '🐨' })),
-  bird:     () => fetch('https://some-random-api.com/animal/bird').then(r => r.json()).then(d => ({ image: d.image, name: 'Oiseau', emoji: '🐦' })),
-  kangaroo: () => fetch('https://some-random-api.com/animal/kangaroo').then(r => r.json()).then(d => ({ image: d.image, name: 'Kangourou', emoji: '🦘' })),
-  raccoon:  () => fetch('https://some-random-api.com/animal/racoon').then(r => r.json()).then(d => ({ image: d.image, name: 'Raton laveur', emoji: '🦝' })),
-  rabbit:   () => fetch('https://some-random-api.com/animal/rabbit').then(r => r.json()).then(d => ({ image: d.image, name: 'Lapin', emoji: '🐰' })),
-  turtle:   () => fetch('https://some-random-api.com/animal/red_panda').then(r => r.json()).then(d => ({ image: d.image, name: 'Tortue', emoji: '🐢' })),
-  snake:    () => fetch('https://some-random-api.com/animal/fox').then(r => r.json()).then(d => ({ image: d.image, name: 'Serpent', emoji: '🐍' })),
-  hamster:  () => fetch('https://some-random-api.com/animal/raccoon').then(r => r.json()).then(d => ({ image: d.image, name: 'Hamster', emoji: '🐹' })),
+  dog:      () => axios.get('https://dog.ceo/api/breeds/image/random', {timeout:8000}).then(r => ({ image: r.data.message, name: 'Chien', emoji: '🐶' })),
+  cat:      () => axios.get('https://api.thecatapi.com/v1/images/search', {timeout:8000}).then(r => ({ image: r.data[0].url, name: 'Chat', emoji: '🐱' })),
+  fox:      () => axios.get('https://randomfox.ca/floof/', {timeout:8000}).then(r => ({ image: r.data.image, name: 'Renard', emoji: '🦊' })),
+  panda:    () => axios.get('https://some-random-api.com/animal/panda', {timeout:8000}).then(r => ({ image: r.data.image, name: 'Panda', emoji: '🐼' })),
+  koala:    () => axios.get('https://some-random-api.com/animal/koala', {timeout:8000}).then(r => ({ image: r.data.image, name: 'Koala', emoji: '🐨' })),
+  bird:     () => axios.get('https://some-random-api.com/animal/bird', {timeout:8000}).then(r => ({ image: r.data.image, name: 'Oiseau', emoji: '🐦' })),
+  kangaroo: () => axios.get('https://some-random-api.com/animal/kangaroo', {timeout:8000}).then(r => ({ image: r.data.image, name: 'Kangourou', emoji: '🦘' })),
+  raccoon:  () => axios.get('https://some-random-api.com/animal/racoon', {timeout:8000}).then(r => ({ image: r.data.image, name: 'Raton laveur', emoji: '🦝' })),
+  rabbit:   () => axios.get('https://some-random-api.com/animal/rabbit', {timeout:8000}).then(r => ({ image: r.data.image, name: 'Lapin', emoji: '🐰' })),
+  turtle:   () => axios.get('https://some-random-api.com/animal/red_panda', {timeout:8000}).then(r => ({ image: r.data.image, name: 'Tortue', emoji: '🐢' })),
+  snake:    () => axios.get('https://some-random-api.com/animal/fox', {timeout:8000}).then(r => ({ image: r.data.image, name: 'Serpent', emoji: '🐍' })),
+  hamster:  () => axios.get('https://some-random-api.com/animal/raccoon', {timeout:8000}).then(r => ({ image: r.data.image, name: 'Hamster', emoji: '🐹' })),
 };
 
 const ANIMAL_KEYS = Object.keys(ANIMAL_APIS);

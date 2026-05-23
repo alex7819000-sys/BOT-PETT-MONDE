@@ -6,7 +6,8 @@ const User   = require('../../db/models/User');
 const Config = require('../../db/models/Config');
 const logger = require('../../utils/logger');
 const { COLORS, EMOJIS, GUILDES } = require('../../config/constants');
-const { getLevelFromXP, safeReply } = require('../../utils/permissions');
+const { getLevelFromXP } = require('../../systems/xp');
+const { safeReply } = require('../../utils/permissions');
 
 const GUILD_COLORS = [0x7C4DFF, 0xFF5252, 0x00BFA5, 0xFF9800, 0x2196F3];
 
