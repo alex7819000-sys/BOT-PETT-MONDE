@@ -1,0 +1,22 @@
+{
+  "name": "king-bot-v5",
+  "version": "5.0.0",
+  "description": "Bot Discord PETIT MONDE — v5",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "discord.js": "^14.14.1",
+    "@discordjs/voice": "^0.17.0",
+    "@discordjs/opus": "^0.9.0",
+    "dotenv": "^16.4.5",
+    "mongoose": "^8.5.1",
+    "node-cron": "^3.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
