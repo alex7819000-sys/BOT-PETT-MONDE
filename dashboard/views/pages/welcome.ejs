@@ -1,0 +1,348 @@
+<%- include('../partials/header', {pageTitle: 'Arrivées & Départs', pageDesc: 'Deux messages de bienvenue : un court dans le chat, un embed complet dans le salon dédié', saved: saved}) %>
+
+<style>
+.toggle { position:relative; width:44px; height:24px; flex-shrink:0; }
+.toggle input { opacity:0; width:0; height:0; }
+.slider { position:absolute; inset:0; background:#444; border-radius:24px; cursor:pointer; transition:.2s; }
+.slider:before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+.toggle input:checked + .slider { background:var(--accent); }
+.toggle input:checked + .slider:before { transform:translateX(20px); }
+.toggle-row { display:flex; align-items:center; justify-content:space-between; background:var(--elevated); border-radius:10px; padding:14px 18px; margin-bottom:12px; }
+.toggle-row label { font-size:13px; color:var(--text-muted); max-width:80%; }
+.vars-hint { background:#1e2124; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:12px; color:var(--text-muted); }
+.vars-hint code { background:#2b2d31; padding:1px 5px; border-radius:4px; color:#e2c97e; font-size:11px; }
+.preview-short { background:#2b2d31; border-radius:8px; padding:12px 16px; color:#dbdee1; font-size:13.5px; margin-top:10px; }
+.embed-preview { background:#2b2d31; border-radius:8px; padding:16px; border-left:4px solid #2ecc71; margin-top:14px; }
+.ep-title { font-weight:700; color:#fff; font-size:14px; margin-bottom:8px; }
+.ep-desc { color:#dbdee1; font-size:13px; white-space:pre-wrap; line-height:1.6; margin-bottom:10px; }
+.ep-fields { display:flex; gap:20px; margin-bottom:10px; }
+.ep-field { background:#1e1f22; border-radius:6px; padding:8px 12px; flex:1; }
+.ep-field-name { font-size:11px; font-weight:700; color:#dbdee1; margin-bottom:3px; }
+.ep-field-val { font-size:12px; color:#b5bac1; }
+.ep-footer { color:#949ba4; font-size:11px; margin-top:10px; border-top:1px solid #3a3d42; padding-top:8px; }
+.ep-image { max-width:100%; border-radius:6px; margin-top:10px; }
+.section-badge { display:inline-block; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:700; vertical-align:middle; margin-left:8px; }
+.badge-chat { background:#5865f2; color:#fff; }
+.badge-bienvenue { background:#2ecc71; color:#fff; }
+</style>
+
+<!-- ══════════════════════════════════════════════════════
+     MESSAGE 1 — COURT dans le chat général
+════════════════════════════════════════════════════════ -->
+<div class="section-title">
+  💬 Message court <span class="section-badge badge-chat">CHAT GÉNÉRAL</span>
+</div>
+<p class="field-hint" style="margin-bottom:16px;">Un message simple envoyé dans le chat dès qu'un membre arrive. Court, direct, comme Etherya.</p>
+
+<form method="POST" action="/dashboard/<%= guild.id %>/welcome">
+  <input type="hidden" name="section" value="short">
+
+  <div class="vars-hint">
+    Variables : <code>{user}</code> mention &nbsp;•&nbsp; <code>{username}</code> pseudo &nbsp;•&nbsp; <code>{server}</code> nom du serveur &nbsp;•&nbsp; <code>{membercount}</code> nb membres
+  </div>
+
+  <div class="form-row">
+    <div class="form-group" style="flex:1;">
+      <label class="field-label">Salon (chat général)</label>
+      <select name="welcomeChannelId">
+        <option value="">— Aucun —</option>
+        <% textChannels.forEach(c => { %>
+          <option value="<%= c.id %>" <%= cfg.welcomeChannelId === c.id ? 'selected' : '' %>>#<%= c.name %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="form-group" style="flex:2;">
+      <label class="field-label">Texte du message</label>
+      <input type="text" id="shortText" name="welcomeShortText" value="<%= cfg.welcomeShortText || '' %>" placeholder="Bienvenue {user} ! Nous sommes désormais **{membercount}** membres. 🎉">
+      <div class="field-hint">Laisse vide pour utiliser le message par défaut.</div>
+    </div>
+  </div>
+
+  <div class="field-label" style="margin-bottom:6px;">Aperçu</div>
+  <div class="preview-short" id="short-preview">
+    Bienvenue <strong>@Nouveau</strong> ! Nous sommes désormais <strong><%= guild.memberCount %></strong> membres. 🎉
+  </div>
+
+  <button type="submit" class="btn btn-gold" style="margin-top:14px;">💾 Enregistrer le message court</button>
+</form>
+
+<hr style="border:none;border-top:1px solid var(--border);margin:32px 0;">
+
+<!-- ══════════════════════════════════════════════════════
+     MESSAGE 2 — EMBED COMPLET dans le salon bienvenue
+════════════════════════════════════════════════════════ -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+  <div>
+    <div class="section-title" style="margin-bottom:4px;">
+      🎉 Embed de bienvenue <span class="section-badge badge-bienvenue">SALON BIENVENUE</span>
+    </div>
+    <p class="field-hint" style="margin:0;">Embed complet style Etherya : titre, description, champs pseudo/ID/membres, miniature avatar, image bannière.</p>
+  </div>
+  <label class="toggle">
+    <input type="checkbox" id="cardToggle" <%= cfg.welcomeCardEnabled ? 'checked' : '' %> onchange="document.getElementById('card-config').style.display=this.checked?'':'none'">
+    <span class="slider"></span>
+  </label>
+</div>
+
+<div id="card-config" style="<%= cfg.welcomeCardEnabled ? '' : 'display:none' %>">
+  <form method="POST" action="/dashboard/<%= guild.id %>/welcome">
+    <input type="hidden" name="section" value="card">
+    <input type="hidden" name="welcomeCardEnabled" value="1">
+
+    <div class="vars-hint">
+      Variables : <code>{user}</code> mention &nbsp;•&nbsp; <code>{username}</code> pseudo &nbsp;•&nbsp; <code>{server}</code> nom du serveur &nbsp;•&nbsp; <code>{membercount}</code> nb membres
+    </div>
+
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Salon bienvenue dédié</label>
+        <select name="welcomeCardChannelId">
+          <option value="">— Aucun —</option>
+          <% textChannels.forEach(c => { %>
+            <option value="<%= c.id %>" <%= cfg.welcomeCardChannelId === c.id ? 'selected' : '' %>>#<%= c.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Couleur de l'embed</label>
+        <input type="text" id="embedColor" name="welcomeColor" value="<%= cfg.welcomeColor || '#2ecc71' %>" placeholder="#2ecc71">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="field-label">Titre de l'embed</label>
+      <input type="text" id="embedTitle" name="welcomeTitle" value="<%= cfg.welcomeTitle || '' %>" placeholder="🎉 Bienvenue sur {server} !">
+    </div>
+
+    <div class="form-group">
+      <label class="field-label">Description</label>
+      <textarea id="embedDesc" name="welcomeDesc" rows="4" placeholder="Hey {user}, on est ravis de t'accueillir parmi nous ! 🦎&#10;&#10;Tu es le **{membercount}e** membre du serveur.&#10;Prends le temps de lire les règles et profite bien de la communauté !"><%= cfg.welcomeDesc || '' %></textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="field-label">Image bannière (URL)</label>
+      <input type="url" id="embedImage" name="welcomeImage" value="<%= cfg.welcomeImage || '' %>" placeholder="https://... (image qui s'affiche en bas de l'embed)">
+    </div>
+
+    <div class="field-label" style="margin-bottom:8px;">Aperçu en direct</div>
+    <div class="embed-preview" id="embed-preview" style="border-left-color:<%= cfg.welcomeColor || '#2ecc71' %>">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="flex:1;">
+          <div class="ep-title" id="ep-title"><%= cfg.welcomeTitle || '🎉 Bienvenue sur ' + guild.name + ' !' %></div>
+          <div class="ep-desc" id="ep-desc"><%= cfg.welcomeDesc || 'Hey @Nouveau, on est ravis de t\'accueillir parmi nous ! 🦎\n\nTu es le ' + guild.memberCount + 'e membre du serveur.\nPrends le temps de lire les règles et profite bien de la communauté !' %></div>
+          <div class="ep-fields">
+            <div class="ep-field">
+              <div class="ep-field-name">👤 Membre</div>
+              <div class="ep-field-val">Nouveau ( 123456789 )</div>
+            </div>
+            <div class="ep-field">
+              <div class="ep-field-name">👥 Membres</div>
+              <div class="ep-field-val"><%= guild.memberCount %> membres</div>
+            </div>
+          </div>
+          <% if (cfg.welcomeImage) { %>
+          <img id="ep-img" class="ep-image" src="<%= cfg.welcomeImage %>">
+          <% } else { %>
+          <img id="ep-img" class="ep-image" src="" style="display:none">
+          <% } %>
+        </div>
+        <div style="width:60px;height:60px;border-radius:50%;background:#5865f2;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;">👤</div>
+      </div>
+      <div class="ep-footer"><%= guild.name %> • Aujourd'hui</div>
+    </div>
+
+    <button type="submit" class="btn btn-gold" style="margin-top:16px;">💾 Enregistrer l'embed</button>
+  </form>
+</div>
+
+<hr style="border:none;border-top:1px solid var(--border);margin:32px 0;">
+
+<!-- ══════════════════════════════════════════════════════
+     AU REVOIR
+════════════════════════════════════════════════════════ -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <div>
+    <div class="section-title" style="margin-bottom:4px;">🚪 Message d'Au Revoir</div>
+    <p class="field-hint" style="margin:0;">Envoyé quand un membre quitte le serveur.</p>
+  </div>
+  <label class="toggle">
+    <input type="checkbox" id="byeEnabled" <%= cfg.byeEnabled ? 'checked' : '' %> onchange="document.getElementById('bye-config').style.display=this.checked?'':'none'">
+    <span class="slider"></span>
+  </label>
+</div>
+
+<div id="bye-config" style="<%= cfg.byeEnabled ? '' : 'display:none' %>">
+  <form method="POST" action="/dashboard/<%= guild.id %>/welcome">
+    <input type="hidden" name="section" value="bye">
+    <input type="hidden" name="byeEnabled" value="1">
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Salon d'au revoir</label>
+        <select name="byeChannelId">
+          <option value="">— Même que bienvenue —</option>
+          <% textChannels.forEach(c => { %>
+            <option value="<%= c.id %>" <%= cfg.byeChannelId === c.id ? 'selected' : '' %>>#<%= c.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Couleur (hex)</label>
+        <input type="text" name="byeColor" value="<%= cfg.byeColor || '#e74c3c' %>" placeholder="#e74c3c">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="field-label">Message d'au revoir</label>
+      <textarea name="byeDesc" rows="3" placeholder="{username} a quitté le serveur. On est désormais {membercount} membres."><%= cfg.byeDesc || '' %></textarea>
+    </div>
+    <button type="submit" class="btn btn-gold" style="margin-top:12px;">💾 Enregistrer l'au revoir</button>
+  </form>
+</div>
+
+<script>
+// Aperçu message court
+(function() {
+  const shortInput = document.getElementById('shortText');
+  const preview = document.getElementById('short-preview');
+  if (!shortInput) return;
+  function updateShort() {
+    const val = shortInput.value || 'Bienvenue {user} ! Nous sommes désormais **{membercount}** membres. 🎉';
+    const filled = val
+      .replace(/\{user\}/g, '<strong>@Nouveau</strong>')
+      .replace(/\{username\}/g, 'Nouveau')
+      .replace(/\{server\}/g, '<%= guild.name %>')
+      .replace(/\{membercount\}/g, '<%= guild.memberCount %>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    preview.innerHTML = filled;
+  }
+  shortInput.addEventListener('input', updateShort);
+  updateShort();
+})();
+
+// Aperçu embed
+(function() {
+  function fill(str) {
+    return (str || '')
+      .replace(/\{user\}/g, '@Nouveau')
+      .replace(/\{username\}/g, 'Nouveau')
+      .replace(/\{server\}/g, '<%= guild.name %>')
+      .replace(/\{membercount\}/g, '<%= guild.memberCount %>');
+  }
+  function update() {
+    const title = document.getElementById('embedTitle')?.value;
+    const desc  = document.getElementById('embedDesc')?.value;
+    const color = document.getElementById('embedColor')?.value;
+    const img   = document.getElementById('embedImage')?.value;
+    if (document.getElementById('ep-title')) document.getElementById('ep-title').textContent = fill(title) || '🎉 Bienvenue sur <%= guild.name %> !';
+    if (document.getElementById('ep-desc'))  document.getElementById('ep-desc').textContent  = fill(desc)  || 'Hey @Nouveau, on est ravis de t\'accueillir parmi nous !';
+    const preview = document.getElementById('embed-preview');
+    if (preview && /^#[0-9A-Fa-f]{6}$/.test(color || '')) preview.style.borderLeftColor = color;
+    const imgEl = document.getElementById('ep-img');
+    if (imgEl) { imgEl.src = img || ''; imgEl.style.display = img ? 'block' : 'none'; }
+  }
+  ['embedTitle','embedDesc','embedColor','embedImage'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', update);
+  });
+  update();
+})();
+</script>
+
+<hr style="border:none;border-top:1px solid var(--border);margin:32px 0;">
+
+<!-- ══════════════════════════════════════════════════════
+     MESSAGE INTERACTIF style ETHERYA (Boutons)
+════════════════════════════════════════════════════════ -->
+<div class="section-title">🎯 Welcome Interactif (Style Etherya)</div>
+<p class="field-hint" style="margin-bottom:16px;">Un message avec emoji, titre, description et boutons interactifs pour accéder aux différentes sections (Comment ça marche?, Les règles, etc.)</p>
+
+<form method="POST" action="/dashboard/<%= guild.id %>/welcome" style="margin-bottom:24px;">
+  <input type="hidden" name="section" value="interactive">
+
+  <div class="toggle-row">
+    <label>🎯 Activer le message interactif Etherya</label>
+    <label class="toggle">
+      <input type="checkbox" name="welcomeInteractiveEnabled" <%= cfg.welcomeInteractiveEnabled ? 'checked' : '' %>>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group" style="flex:1;">
+      <label class="field-label">Emoji du titre</label>
+      <input type="text" name="welcomeEmbedEmoji" value="<%= cfg.welcomeEmbedEmoji || '⭐' %>" maxlength="2" style="width:60px;font-size:20px;text-align:center;">
+    </div>
+    <div class="form-group" style="flex:3;">
+      <label class="field-label">Titre</label>
+      <input type="text" name="welcomeEmbedTitle" value="<%= cfg.welcomeEmbedTitle || 'Bienvenue sur {server}!' %>" placeholder="Bienvenue sur {server}!">
+      <div class="field-hint">Variables: {server}, {user}, {membercount}</div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="field-label">Description</label>
+    <textarea name="welcomeEmbedDesc" style="min-height:80px;"><%= cfg.welcomeEmbedDesc || 'Hey {user}! 👋\\n\\nPartage ton pseudo, tes goûts, ta perso...' %></textarea>
+    <div class="field-hint">Variables: {user}, {server}, {membercount}</div>
+  </div>
+
+  <button type="submit" class="btn btn-gold" style="margin-top:14px;">💾 Enregistrer le design</button>
+</form>
+
+<div style="background:var(--elevated);border-radius:10px;padding:16px;margin-top:24px;margin-bottom:24px;border-left:4px solid var(--accent);">
+  <div class="section-title" style="margin:0 0 16px 0; font-size:14px;">📋 Sections du message interactif</div>
+  <p class="field-hint">Chaque section devient un bouton que les utilisateurs peuvent cliquer pour voir les détails.</p>
+  
+  <form method="POST" action="/dashboard/<%= guild.id %>/welcome">
+    <input type="hidden" name="section" value="add_interactive_section">
+
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Emoji</label>
+        <input type="text" name="sectionEmoji" value="❓" maxlength="2" style="width:60px;font-size:18px;text-align:center;">
+      </div>
+      <div class="form-group" style="flex:3;">
+        <label class="field-label">Titre du bouton</label>
+        <input type="text" name="sectionTitle" placeholder="ex: Comment ça marche?" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="field-label">Contenu de la section</label>
+      <textarea name="sectionDesc" placeholder="Contenu affiché quand on clique sur le bouton" style="min-height:100px;" required></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-gold">➕ Ajouter la section</button>
+  </form>
+</div>
+
+<!-- Sections existantes -->
+<div class="section-list">
+  <% if (cfg.welcomeSections && cfg.welcomeSections.length > 0) { %>
+    <% cfg.welcomeSections.forEach((section, idx) => { %>
+      <div class="section-item">
+        <div class="section-header">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:24px;"><%= section.emoji || '❓' %></span>
+            <div>
+              <div style="font-weight:700;color:#fff;font-size:14px;"><%= section.title %></div>
+              <div style="color:var(--text-muted);font-size:12px;">ID: <%= section.id %></div>
+            </div>
+          </div>
+          <form method="POST" action="/dashboard/<%= guild.id %>/welcome" style="display:inline;">
+            <input type="hidden" name="section" value="delete_interactive_section">
+            <input type="hidden" name="sectionId" value="<%= section.id %>">
+            <button type="submit" class="btn btn-sm" style="background:#dc3545;color:#fff;" onclick="return confirm('Supprimer cette section ?');">🗑️</button>
+          </form>
+        </div>
+
+        <div style="color:#dbdee1;font-size:13px;margin-top:8px;white-space:pre-wrap;"><%= section.description.substring(0, 150) %><% if (section.description.length > 150) { %>...<% } %></div>
+      </div>
+    <% }) %>
+  <% } %>
+</div>
+
+<%- include('../partials/footer') %>
+
+<script>
+// ... rest of existing script
+</script>
+

@@ -1,0 +1,136 @@
+<%- include('../partials/header', {pageTitle: 'Vocal & Ghost Bot', pageDesc: 'Salons temporaires, King du Vocal et présence fantôme', saved: saved}) %>
+
+<style>
+.vocal-section { margin-bottom: 28px; }
+.toggle-row { display:flex; align-items:center; justify-content:space-between; gap:16px; background:var(--elevated); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+.toggle-info { flex:1; }
+.toggle-info strong { display:block; font-size:13px; color:var(--text); }
+.toggle-info span { font-size:11px; color:var(--text-muted); }
+.toggle-pill { position:relative; width:44px; height:24px; flex-shrink:0; }
+.toggle-pill input { opacity:0; width:0; height:0; }
+.toggle-pill .slider { position:absolute; inset:0; border-radius:12px; background:var(--border); cursor:pointer; transition:.2s; }
+.toggle-pill input:checked + .slider { background:var(--accent); }
+.toggle-pill .slider::before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; border-radius:50%; background:#fff; transition:.2s; }
+.toggle-pill input:checked + .slider::before { transform:translateX(20px); }
+.config-card { background:var(--elevated); border:1px solid var(--border); border-radius:10px; padding:18px; margin-top:10px; }
+.ghost-status { display:flex; align-items:center; gap:10px; padding:12px 16px; background:var(--elevated); border-radius:8px; margin-bottom:12px; }
+.ghost-dot { width:10px; height:10px; border-radius:50%; background:#da373c; }
+.ghost-dot.online { background:#23a55a; }
+</style>
+
+<form method="POST" action="/dashboard/<%= guild.id %>/vocal">
+
+  <!-- ── GHOST BOT ─────────────────────────────── -->
+  <div class="section-title">👻 Ghost Bot (présence vocale 24/7)</div>
+  <p class="field-hint" style="margin-bottom:14px;">Le bot reste connecté en silence dans un salon vocal, il ne parle pas et n'écoute pas. Utile pour faire vivre un vocal en permanence.</p>
+
+  <div class="config-card">
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Salon vocal fantôme</label>
+        <select name="ghostBotChannelId">
+          <option value="">— Désactivé —</option>
+          <% (voiceChannels||[]).forEach(c => { %>
+            <option value="<%= c.id %>" <%= cfg.ghostBotChannelId === c.id ? 'selected' : '' %>>🔊 <%= c.name %></option>
+          <% }) %>
+        </select>
+        <div class="field-hint">Laisse vide pour déconnecter le bot de tous les vocaux.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SALONS VOCAUX TEMPORAIRES ─────────────── -->
+  <div class="section-title" style="margin-top:28px;">🎙️ Salons vocaux temporaires</div>
+  <p class="field-hint" style="margin-bottom:14px;">Quand un membre rejoint le salon "➕ Créer un vocal", le bot lui crée un salon perso à son nom. Le salon se supprime automatiquement quand il est vide.</p>
+
+  <div class="toggle-row">
+    <div class="toggle-info">
+      <strong>Activer les salons temporaires</strong>
+      <span>Un salon perso créé à la demande, supprimé quand vide</span>
+    </div>
+    <label class="toggle-pill">
+      <input type="checkbox" name="tempVoiceEnabled" value="1" <%= cfg.tempVoiceEnabled ? 'checked' : '' %>>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="config-card">
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Salon déclencheur (➕ Créer un vocal)</label>
+        <select name="tempVoiceCreateChannelId">
+          <option value="">— Choisir un salon —</option>
+          <% (voiceChannels||[]).forEach(c => { %>
+            <option value="<%= c.id %>" <%= cfg.tempVoiceCreateChannelId === c.id ? 'selected' : '' %>>🔊 <%= c.name %></option>
+          <% }) %>
+        </select>
+        <div class="field-hint">Le membre rejoint ce salon → un nouveau salon est créé pour lui.</div>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Catégorie de création</label>
+        <select name="tempVoiceCategoryId">
+          <option value="">— Même catégorie —</option>
+          <% (categories||[]).forEach(c => { %>
+            <option value="<%= c.id %>" <%= cfg.tempVoiceCategoryId === c.id ? 'selected' : '' %>><%= c.name %></option>
+          <% }) %>
+        </select>
+        <div class="field-hint">Catégorie où les salons temporaires seront créés.</div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Nom du salon</label>
+        <input type="text" name="tempVoiceNameTemplate" value="<%= cfg.tempVoiceNameTemplate || '🎙️ {username}' %>" placeholder="🎙️ {username}">
+        <div class="field-hint">Variables : <code>{username}</code> (pseudo Discord), <code>{tag}</code> (pseudo#discrim)</div>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Limite d'utilisateurs</label>
+        <input type="number" name="tempVoiceMaxUsers" value="<%= cfg.tempVoiceMaxUsers || 0 %>" min="0" max="99">
+        <div class="field-hint">0 = illimité. Sinon, le salon sera limité à ce nombre de membres.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── KING DU VOCAL ──────────────────────────── -->
+  <div class="section-title" style="margin-top:28px;">👑 King du Vocal</div>
+  <p class="field-hint" style="margin-bottom:14px;">Chaque semaine (lundi à minuit), le membre avec le plus de minutes en vocal reçoit un rôle exclusif "King du Vocal". Son prédécesseur le perd.</p>
+
+  <div class="toggle-row">
+    <div class="toggle-info">
+      <strong>Activer le King du Vocal</strong>
+      <span>Rôle attribué chaque semaine au membre le plus actif en vocal</span>
+    </div>
+    <label class="toggle-pill">
+      <input type="checkbox" name="voiceKingEnabled" value="1" <%= cfg.voiceKingEnabled ? 'checked' : '' %>>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="config-card">
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Rôle King du Vocal 👑</label>
+        <select name="voiceKingRoleId">
+          <option value="">— Aucun —</option>
+          <% (roles||[]).forEach(r => { %>
+            <option value="<%= r.id %>" <%= cfg.voiceKingRoleId === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Salon d'annonce (optionnel)</label>
+        <select name="voiceKingChannelId">
+          <option value="">— Pas d'annonce —</option>
+          <% (textChannels||[]).forEach(c => { %>
+            <option value="<%= c.id %>" <%= cfg.voiceKingChannelId === c.id ? 'selected' : '' %>>💬 <%= c.name %></option>
+          <% }) %>
+        </select>
+        <div class="field-hint">Le bot annoncera le nouveau King du Vocal dans ce salon chaque lundi.</div>
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-gold" style="margin-top:24px;">💾 Enregistrer les paramètres vocaux</button>
+</form>
+
+<%- include('../partials/footer') %>

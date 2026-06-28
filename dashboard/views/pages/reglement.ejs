@@ -1,0 +1,209 @@
+<%- include('../partials/header', {pageTitle: 'Règlement', pageDesc: 'Système de règlement complet style Etherya avec sections et menu déroulant', saved: saved}) %>
+
+<style>
+.toggle { position:relative; width:44px; height:24px; flex-shrink:0; }
+.toggle input { opacity:0; width:0; height:0; }
+.slider { position:absolute; inset:0; background:#444; border-radius:24px; cursor:pointer; transition:.2s; }
+.slider:before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+.toggle input:checked + .slider { background:var(--accent); }
+.toggle input:checked + .slider:before { transform:translateX(20px); }
+.toggle-row { display:flex; align-items:center; justify-content:space-between; background:var(--elevated); border-radius:10px; padding:14px 18px; margin-bottom:12px; }
+.toggle-row label { font-size:13px; color:var(--text-muted); max-width:80%; }
+.section-list { display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+.section-item { background:var(--elevated); border-radius:10px; padding:16px; border-left:4px solid var(--accent); }
+.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.section-emoji-input { width:50px; font-size:18px; text-align:center; padding:8px; border-radius:6px; }
+.section-form { display:flex; flex-direction:column; gap:12px; }
+.embed-preview { background:#2b2d31; border-radius:8px; padding:16px; border-left:4px solid var(--accent); margin-top:14px; }
+.ep-title { font-weight:700; color:#fff; font-size:14px; margin-bottom:8px; }
+.ep-desc { color:#dbdee1; font-size:13px; white-space:pre-wrap; line-height:1.6; }
+.ep-field { color:#949ba4; font-size:12px; margin-top:8px; }
+.btn-group { display:flex; gap:8px; margin-top:12px; }
+.color-input { width:60px; height:36px; border-radius:6px; border:none; cursor:pointer; padding:2px; }
+.hidden-section { display:none; }
+</style>
+
+<!-- ══════════════════════════════════════════════════════
+     CONFIGURATION GÉNÉRALE
+════════════════════════════════════════════════════════ -->
+<div class="section-title">⚙️ Configuration générale</div>
+
+<form method="POST" action="/dashboard/<%= guild.id %>/reglement" style="margin-bottom:24px;">
+  <input type="hidden" name="action" value="general">
+
+  <div class="toggle-row">
+    <label>🎯 Activer le système de règlement</label>
+    <label class="toggle">
+      <input type="checkbox" name="reglementEnabled" <%= cfg.reglementEnabled ? 'checked' : '' %>>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="form-group">
+    <label class="field-label">📍 Salon du règlement</label>
+    <select name="reglementChannelId" id="reglementChannel">
+      <option value="">— Aucun —</option>
+      <% textChannels.forEach(c => { %>
+        <option value="<%= c.id %>" <%= cfg.reglementChannelId === c.id ? 'selected' : '' %>#<%= c.name %></option>
+      <% }) %>
+    </select>
+    <div class="field-hint">Le salon où le règlement sera posté.</div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group" style="flex:1;">
+      <label class="field-label">🎨 Couleur principal</label>
+      <input type="color" name="reglementColor" value="<%= cfg.reglementColor || '#2ecc71' %>" class="color-input">
+      <div class="field-hint">Couleur des embeds du règlement.</div>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label class="field-label">🖼️ Image bannière (URL)</label>
+    <input type="url" name="reglementImage" value="<%= cfg.reglementImage || '' %>" placeholder="https://exemple.com/banner.png">
+    <div class="field-hint">Image affichée en haut de chaque section du règlement (optionnel).</div>
+  </div>
+
+  <button type="submit" class="btn btn-gold" style="margin-top:14px;">💾 Enregistrer la configuration</button>
+</form>
+
+<hr style="border:none;border-top:1px solid var(--border);margin:32px 0;">
+
+<!-- ══════════════════════════════════════════════════════
+     SECTIONS DU RÈGLEMENT
+════════════════════════════════════════════════════════ -->
+<div class="section-title">📋 Sections du règlement</div>
+<p class="field-hint" style="margin-bottom:16px;">Crée les sections du règlement (ex: Règles générales, Publicité, Sanctions). Chaque section apparaît dans le menu déroulant.</p>
+
+<!-- Ajouter une nouvelle section -->
+<div style="background:var(--elevated);border-radius:10px;padding:16px;margin-bottom:24px;border-left:4px solid var(--accent);">
+  <div class="section-title" style="margin:0 0 16px 0; font-size:14px;">➕ Ajouter une section</div>
+  
+  <form method="POST" action="/dashboard/<%= guild.id %>/reglement">
+    <input type="hidden" name="action" value="add_section">
+
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label class="field-label">Emoji</label>
+        <input type="text" name="emoji" value="📋" maxlength="2" class="section-emoji-input" placeholder="📋">
+        <div class="field-hint">Un seul emoji</div>
+      </div>
+      <div class="form-group" style="flex:3;">
+        <label class="field-label">Titre</label>
+        <input type="text" name="title" placeholder="ex: Règles générales" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="field-label">Description / Contenu des règles</label>
+      <textarea name="description" placeholder="📌 Règle 1: description...&#10;📌 Règle 2: description..." style="min-height:120px;" required></textarea>
+      <div class="field-hint">Utilise des numéros et des emojis pour formater les règles. Supporte le Markdown.</div>
+    </div>
+
+    <button type="submit" class="btn btn-gold">➕ Ajouter la section</button>
+  </form>
+</div>
+
+<!-- Sections existantes -->
+<div class="section-list">
+  <% if (cfg.reglementSections && cfg.reglementSections.length > 0) { %>
+    <% cfg.reglementSections.forEach((section, idx) => { %>
+      <div class="section-item">
+        <div class="section-header">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:24px;"><%= section.emoji || '📋' %></span>
+            <div>
+              <div style="font-weight:700;color:#fff;font-size:14px;"><%= section.title %></div>
+              <div style="color:var(--text-muted);font-size:12px;">ID: <%= section.id %></div>
+            </div>
+          </div>
+          <div class="btn-group">
+            <form method="POST" action="/dashboard/<%= guild.id %>/reglement" style="display:inline;">
+              <input type="hidden" name="action" value="delete_section">
+              <input type="hidden" name="sectionId" value="<%= section.id %>">
+              <button type="submit" class="btn btn-sm" style="background:#dc3545;color:#fff;" onclick="return confirm('Supprimer cette section ?');">🗑️ Supprimer</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Formulaire d'édition (caché) -->
+        <div class="hidden-section" id="edit-<%= section.id %>">
+          <form method="POST" action="/dashboard/<%= guild.id %>/reglement">
+            <input type="hidden" name="action" value="edit_section">
+            <input type="hidden" name="sectionId" value="<%= section.id %>">
+
+            <div class="form-row">
+              <div class="form-group" style="flex:1;">
+                <label class="field-label">Emoji</label>
+                <input type="text" name="emoji" value="<%= section.emoji %>" maxlength="2" class="section-emoji-input">
+              </div>
+              <div class="form-group" style="flex:3;">
+                <label class="field-label">Titre</label>
+                <input type="text" name="title" value="<%= section.title %>" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="field-label">Description</label>
+              <textarea name="description" style="min-height:120px;" required><%= section.description %></textarea>
+            </div>
+
+            <div class="btn-group">
+              <button type="submit" class="btn btn-gold" style="flex:1;">💾 Enregistrer</button>
+              <button type="button" class="btn" style="flex:1;background:#666;" onclick="toggleEdit('<%= section.id %>');">❌ Annuler</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Aperçu -->
+        <div class="embed-preview">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-size:18px;"><%= section.emoji || '📋' %></span>
+            <div style="font-weight:700;color:#fff;"><%= section.title %></div>
+          </div>
+          <div style="color:#dbdee1;font-size:13px;white-space:pre-wrap;line-height:1.6;"><%= section.description.substring(0, 200) %><% if (section.description.length > 200) { %>...<% } %></div>
+          <button type="button" class="btn btn-sm" style="margin-top:10px;background:#5865f2;color:#fff;" onclick="toggleEdit('<%= section.id %>');">✏️ Éditer</button>
+        </div>
+      </div>
+    <% }) %>
+  <% } else { %>
+    <div style="background:var(--elevated);border-radius:10px;padding:24px;text-align:center;color:var(--text-muted);">
+      📭 Aucune section créée. Ajoute-en une ci-dessus pour commencer !
+    </div>
+  <% } %>
+</div>
+
+<hr style="border:none;border-top:1px solid var(--border);margin:32px 0;">
+
+<!-- ══════════════════════════════════════════════════════
+     ACTIONS
+════════════════════════════════════════════════════════ -->
+<div class="section-title">🎯 Actions</div>
+
+<form method="POST" action="/dashboard/<%= guild.id %>/reglement">
+  <input type="hidden" name="action" value="post">
+  <button type="submit" class="btn btn-gold" style="width:100%;padding:14px;">
+    📤 Poster le règlement dans le salon
+  </button>
+</form>
+
+<div class="field-hint" style="margin-top:14px;">
+  Envoie le message principal du règlement avec le menu déroulant dans le salon configuré.
+</div>
+
+<script>
+function toggleEdit(sectionId) {
+  const editSection = document.getElementById('edit-' + sectionId);
+  editSection.classList.toggle('hidden-section');
+}
+
+// Mettre à jour l'aperçu du message court en temps réel
+document.getElementById('shortText')?.addEventListener('input', function() {
+  const preview = document.getElementById('short-preview');
+  let text = this.value || 'Bienvenue {user} ! Nous sommes désormais **{membercount}** membres. 🎉';
+  text = text.replace('{user}', '<strong>@Nouveau</strong>')
+             .replace('{membercount}', '<strong><%= guild.memberCount %></strong>')
+             .replace('{server}', '<strong><%= guild.name %></strong>');
+  preview.innerHTML = text;
+});
+</script>
