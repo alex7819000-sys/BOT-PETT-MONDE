@@ -1,0 +1,174 @@
+<%- include('../partials/header', {pageTitle: 'Arrivées & Départs', pageDesc: 'Configurez les messages de bienvenue et d\'au revoir', saved: saved}) %>
+
+<style>
+.toggle-row { display:flex; align-items:center; justify-content:space-between; background:var(--elevated); border-radius:10px; padding:14px 18px; margin-bottom:12px; }
+.toggle-row label { font-size:13px; color:var(--text-muted); max-width:80%; }
+.toggle { position:relative; width:44px; height:24px; flex-shrink:0; }
+.toggle input { opacity:0; width:0; height:0; }
+.slider { position:absolute; inset:0; background:#444; border-radius:24px; cursor:pointer; transition:.2s; }
+.slider:before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+.toggle input:checked + .slider { background:var(--accent); }
+.toggle input:checked + .slider:before { transform:translateX(20px); }
+.embed-preview { background:#2b2d31; border-radius:8px; padding:16px; border-left:4px solid #5865f2; margin-top:16px; }
+.embed-preview .ep-title { font-weight:700; color:#fff; font-size:14px; margin-bottom:6px; }
+.embed-preview .ep-desc { color:#dbdee1; font-size:13.5px; white-space:pre-wrap; line-height:1.5; }
+.embed-preview .ep-footer { color:#949ba4; font-size:11px; margin-top:10px; border-top:1px solid #3a3d42; padding-top:8px; }
+.embed-preview .ep-image { max-width:100%; border-radius:6px; margin-top:10px; display:none; }
+.vars-hint { background:#1e2124; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:12px; color:var(--text-muted); }
+.vars-hint code { background:#2b2d31; padding:1px 5px; border-radius:4px; color:#e2c97e; font-size:11px; }
+.section-toggle { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.section-toggle h3 { font-size:15px; font-weight:600; color:var(--text); margin:0; }
+</style>
+
+<!-- ── BIENVENUE ────────────────────────────────────────────── -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <div>
+    <div class="section-title" style="margin-bottom:4px;">👋 Message de Bienvenue</div>
+    <p class="field-hint" style="margin:0;">Envoyé automatiquement quand un nouveau membre rejoint.</p>
+  </div>
+  <label class="toggle" title="Activer le message de bienvenue">
+    <input type="checkbox" id="welcomeEnabled" <%= cfg.welcomeEnabled ? 'checked' : '' %> onchange="toggleSection('welcome-config', this.checked)">
+    <span class="slider"></span>
+  </label>
+</div>
+
+<div id="welcome-config" style="<%= cfg.welcomeEnabled ? '' : 'display:none' %>">
+  <form method="POST" action="/dashboard/<%= guild.id %>/welcome">
+    <input type="hidden" name="section" value="welcome">
+    <div class="vars-hint">
+      Variables disponibles : <code>{user}</code> mention &nbsp;•&nbsp; <code>{username}</code> pseudo &nbsp;•&nbsp; <code>{server}</code> nom du serveur &nbsp;•&nbsp; <code>{membercount}</code> nb membres
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="field-label">Salon de bienvenue</label>
+        <select name="welcomeChannelId">
+          <option value="">— Aucun —</option>
+          <% textChannels.forEach(c => { %>
+            <option value="<%= c.id %>" <%= cfg.welcomeChannelId === c.id ? 'selected' : '' %>>#<%= c.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Couleur de l'embed (hex)</label>
+        <input type="text" id="welcomeColor" name="welcomeColor" value="<%= cfg.welcomeColor || '#2ecc71' %>" placeholder="#2ecc71">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="field-label">Titre de l'embed</label>
+      <input type="text" id="welcomeTitle" name="welcomeTitle" value="<%= cfg.welcomeTitle || '' %>" placeholder="👑 Bienvenue sur {server} !">
+    </div>
+
+    <div class="form-group">
+      <label class="field-label">Message / Description</label>
+      <textarea id="welcomeDesc" name="welcomeDesc" rows="4" placeholder="Salut {user} ! Tu es le membre n°{membercount}. Lis le règlement et présente-toi !"><%= cfg.welcomeDesc || '' %></textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="field-label">Image bannière (URL)</label>
+        <input type="url" id="welcomeImage" name="welcomeImage" value="<%= cfg.welcomeImage || '' %>" placeholder="https://...">
+      </div>
+      <div class="form-group">
+        <label class="field-label">Footer</label>
+        <input type="text" id="welcomeFooter" name="welcomeFooter" value="<%= cfg.welcomeFooter || '' %>" placeholder="Membre n°{membercount}">
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <label>Mentionner le membre dans le message</label>
+      <label class="toggle">
+        <input type="checkbox" name="welcomeMention" <%= cfg.welcomeMention ? 'checked' : '' %>>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="field-label" style="margin:16px 0 8px;">Aperçu en direct</div>
+    <div class="embed-preview" id="welcome-preview" style="border-left-color:<%= cfg.welcomeColor || '#2ecc71' %>">
+      <div class="ep-title" id="wp-title"><%= cfg.welcomeTitle || '👑 Bienvenue sur HERA !' %></div>
+      <div class="ep-desc" id="wp-desc"><%= cfg.welcomeDesc || 'Salut @Nouveau ! Tu es le membre n°222.' %></div>
+      <img class="ep-image" id="wp-img" src="<%= cfg.welcomeImage || '' %>" <%= cfg.welcomeImage ? 'style="display:block"' : '' %>>
+      <div class="ep-footer" id="wp-footer" <%= cfg.welcomeFooter ? '' : 'style="display:none"' %>><%= cfg.welcomeFooter || '' %></div>
+    </div>
+
+    <button type="submit" class="btn btn-gold" style="margin-top:18px;">💾 Enregistrer la bienvenue</button>
+  </form>
+</div>
+
+<hr style="border:none;border-top:1px solid var(--border);margin:32px 0;">
+
+<!-- ── AU REVOIR ───────────────────────────────────────────── -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <div>
+    <div class="section-title" style="margin-bottom:4px;">🚪 Message d'Au Revoir</div>
+    <p class="field-hint" style="margin:0;">Envoyé quand un membre quitte le serveur.</p>
+  </div>
+  <label class="toggle">
+    <input type="checkbox" id="byeEnabled" <%= cfg.byeEnabled ? 'checked' : '' %> onchange="toggleSection('bye-config', this.checked)">
+    <span class="slider"></span>
+  </label>
+</div>
+
+<div id="bye-config" style="<%= cfg.byeEnabled ? '' : 'display:none' %>">
+  <form method="POST" action="/dashboard/<%= guild.id %>/welcome">
+    <input type="hidden" name="section" value="bye">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="field-label">Salon d'au revoir</label>
+        <select name="byeChannelId">
+          <option value="">— Même que bienvenue —</option>
+          <% textChannels.forEach(c => { %>
+            <option value="<%= c.id %>" <%= cfg.byeChannelId === c.id ? 'selected' : '' %>>#<%= c.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="field-label">Couleur (hex)</label>
+        <input type="text" id="byeColor" name="byeColor" value="<%= cfg.byeColor || '#e74c3c' %>" placeholder="#e74c3c">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="field-label">Message d'au revoir</label>
+      <textarea id="byeDesc" name="byeDesc" rows="3" placeholder="{username} a quitté le serveur. On était {membercount}."><%= cfg.byeDesc || '' %></textarea>
+    </div>
+    <button type="submit" class="btn btn-gold" style="margin-top:12px;">💾 Enregistrer l'au revoir</button>
+  </form>
+</div>
+
+<script>
+function toggleSection(id, show) {
+  document.getElementById(id).style.display = show ? '' : 'none';
+}
+
+(function() {
+  function fill(str) {
+    return (str || '')
+      .replace(/\{user\}/g, '<@Nouveau>')
+      .replace(/\{username\}/g, 'Nouveau')
+      .replace(/\{server\}/g, '<%= guild.name %>')
+      .replace(/\{membercount\}/g, '<%= guild.memberCount %>');
+  }
+  function update() {
+    const title = document.getElementById('welcomeTitle').value;
+    const desc  = document.getElementById('welcomeDesc').value;
+    const color = document.getElementById('welcomeColor').value;
+    const img   = document.getElementById('welcomeImage').value;
+    const footer= document.getElementById('welcomeFooter').value;
+    document.getElementById('wp-title').textContent = fill(title) || '👑 Bienvenue !';
+    document.getElementById('wp-desc').textContent  = fill(desc)  || 'Bienvenue sur le serveur !';
+    const preview = document.getElementById('welcome-preview');
+    if (/^#[0-9A-Fa-f]{6}$/.test(color)) preview.style.borderLeftColor = color;
+    const imgEl = document.getElementById('wp-img');
+    imgEl.src = img; imgEl.style.display = img ? 'block' : 'none';
+    const footerEl = document.getElementById('wp-footer');
+    footerEl.textContent = fill(footer); footerEl.style.display = footer ? 'block' : 'none';
+  }
+  ['welcomeTitle','welcomeDesc','welcomeColor','welcomeImage','welcomeFooter'].forEach(id => {
+    document.getElementById(id).addEventListener('input', update);
+  });
+  update();
+})();
+</script>
+
+<%- include('../partials/footer') %>
