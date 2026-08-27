@@ -1,0 +1,142 @@
+// src/config/changelog.js — Historique détaillé des versions, utilisé pour annoncer
+// automatiquement les mises à jour dans le salon configuré (voir systems/updateAnnounce.js).
+//
+// Structure par version — chaque catégorie est optionnelle (omets-la si vide) :
+//   title    : titre court de la version (1 ligne, affiché en haut de l'annonce)
+//   added    : nouvelles fonctionnalités
+//   changed  : comportements existants modifiés/améliorés
+//   fixed    : bugs corrigés
+//   removed  : fonctionnalités retirées
+//
+// ⚠️ À chaque nouvelle session de travail sur le bot : monter CURRENT_VERSION
+// d'un cran et ajouter une entrée complète et détaillée ici (comme un vrai
+// changelog de produit — pas juste "quelques trucs corrigés"). Langage clair
+// pour le staff/les membres, mais précis et complet : ce qui a été ajouté,
+// ce qui a changé, ce qui a été corrigé et pourquoi, ce qui a été retiré.
+'use strict';
+
+const CURRENT_VERSION = 'v88';
+
+const CHANGELOG = {
+  v88: {
+    title: 'Retours du staff pris en compte',
+    added: [
+      'Graphique visuel dans `/stats croissance` — barres arrivées/départs par jour + ligne de solde net, avec choix de la période (7/14/30 jours)',
+      'Détails supplémentaires sur la croissance : moyenne d\'arrivées/jour, meilleur et pire jour de la période',
+    ],
+    changed: [
+      'Le salon "maj du bot" se configure maintenant avec `/notif maj salon:#xxx` — plus simple et plus facile à trouver qu\'avant',
+    ],
+    fixed: [
+      'Correction d\'une erreur de documentation : le salon de mise à jour avait été indiqué avec la mauvaise commande',
+    ],
+  },
+
+  v87: {
+    title: 'Rappel de bump rendu précis',
+    fixed: [
+      'Le rappel de bump partait sur un horaire fixe toutes les 2h, sans savoir quand le dernier bump avait vraiment eu lieu — pouvait ping trop tôt (cooldown pas terminé) selon le moment réel du bump précédent',
+      'L\'embed affichait "2 min de cooldown" pour Disboard — c\'est 2 heures, corrigé',
+    ],
+    changed: [
+      'Chaque bump réussi enregistre maintenant l\'heure exacte, et le bot vérifie toutes les 5 minutes si les 2h sont vraiment écoulées avant de ping — le rappel arrive pile au bon moment, sans reping en boucle',
+    ],
+  },
+
+  v86: {
+    title: 'Rôle Bumper accessible depuis Discord',
+    added: [
+      'Nouvelle catégorie "🚀 Rappels de Bump" dans le panel de pings self-serve — les membres peuvent maintenant s\'abonner eux-mêmes d\'un clic pour être pingés à chaque fois qu\'il faut bumper le serveur',
+    ],
+    fixed: [
+      'Le rôle Bumper (ping automatique au moment du bump) n\'était réglable que depuis le dashboard web — impossible de le configurer depuis Discord. Ajouté aux choix de `/setup role`',
+    ],
+  },
+
+  v85: {
+    title: 'Changelog détaillé et catégorisé',
+    changed: [
+      'Le format des annonces de mise à jour passe d\'une simple liste à un vrai changelog structuré : Nouveautés / Modifié / Corrigé / Retiré, avec bien plus de détail sur chaque changement',
+    ],
+  },
+
+  v84: {
+    title: 'Annonces de mise à jour automatiques',
+    added: [
+      'Le bot annonce désormais automatiquement ses mises à jour dans un salon dédié (`/setup salon type:"🤖 Salon maj du bot"`), à chaque redémarrage où le code a changé',
+      'Ne poste qu\'une seule fois par version — même si le bot redémarre plusieurs fois dans la journée sans changement de code (mémorisé en base), pas de spam',
+    ],
+  },
+
+  v83: {
+    title: 'Nettoyage complet de la confusion "King of the Day"',
+    changed: [
+      '"King of the Day" renommé partout en **"Champion du Jour"** — évite la confusion avec le rôle King permanent du owner',
+      'Les 2 rôles Champion (Textuel/Vocal) sont maintenant configurables proprement depuis la page dashboard "Rôles spéciaux"',
+    ],
+    fixed: [
+      'Résidus de la Bataille chien/chat (retirée en v76) qui traînaient encore dans le panel d\'info `/info` nettoyés',
+    ],
+    removed: [
+      'Suppression d\'un ancien système de couronnement ("Roi du jour" à 20h30) qui n\'était en réalité **jamais exécuté** — du code mort qui, s\'il avait tourné, serait entré en conflit avec le vrai podium quotidien de minuit',
+    ],
+  },
+
+  v82: {
+    title: 'Système d\'XP solidifié',
+    fixed: [
+      '**Le plus important** : monter de niveau en vocal ne donnait jamais les rôles de niveau ni les rôles hebdomadaires — seul le texte les donnait vraiment, malgré l\'annonce "LEVEL UP" affichée dans les deux cas. Un membre actif uniquement en vocal pouvait grimper plusieurs paliers sans jamais rien recevoir',
+      'Le message d\'aide XP en jeu promettait que les réactions et les invitations donnaient de l\'XP — jamais codé, jamais eu la moindre ligne de logique derrière. Corrigé avec les vraies sources d\'XP',
+      'Ce même message recommandait `/niveau` et `/top`, deux commandes supprimées depuis longtemps — remplacé par des infos exactes',
+    ],
+    removed: [
+      '`/setup multixp` (bonus XP par salon) retirée — commande déclarée mais strictement aucun code derrière, ne faisait rien',
+    ],
+  },
+
+  v81: {
+    title: 'Fix de l\'avatar sur les annonces de boost',
+    fixed: [
+      'L\'embed "NOUVEAU BOOST !" affichait parfois une miniature vide — un réglage technique Discord (Partial) manquant empêchait de récupérer l\'avatar à temps. Corrigé, avec une sécurité supplémentaire en cas d\'échec',
+    ],
+  },
+
+  v80: {
+    title: 'Nouvelle commande /aide',
+    added: [
+      '`/aide` — liste toutes les commandes du bot (avec sous-commandes et description). Générée automatiquement depuis le vrai code des commandes, donc toujours exacte, même après de futurs ajouts',
+    ],
+  },
+
+  v79: {
+    title: 'Audit complet du bot',
+    fixed: [
+      'Un classement hebdomadaire du jeu 7777 plantait silencieusement chaque semaine (pointait vers un fichier obsolète) — supprimé, cette fonctionnalité n\'existe plus dans le système actuel',
+      'La page dashboard "Embeds" plantait systématiquement à l\'ouverture (variable manquante) — corrigée',
+    ],
+  },
+
+  v78: {
+    title: 'Rôles Champion pour le podium',
+    added: [
+      '2 rôles "Champion" optionnels, attribués chaque nuit au gagnant du podium (Textuel et Vocal séparément), configurables via `/setup role`',
+    ],
+  },
+
+  v77: {
+    title: 'Podium quotidien simplifié',
+    changed: [
+      'Le podium de minuit passe de 5 catégories façon top 3 (XP, messages, images, bumps, vocal) à seulement **2 champions clairs** : Top 1 Textuel et Top 1 Vocal',
+      'Chaque champion voit désormais afficher son nombre de fois n°1 au total (compteur permanent, jamais remis à zéro)',
+    ],
+  },
+
+  v76: {
+    title: 'Suppression de la Bataille chien/chat',
+    removed: [
+      'Système complet retiré (peu utilisé par les membres) : détection chien/chat, factions, `/guerre`, et tous les rôles/salons associés',
+    ],
+  },
+};
+
+module.exports = { CURRENT_VERSION, CHANGELOG };
