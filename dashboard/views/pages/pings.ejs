@@ -1,0 +1,178 @@
+<%- include('../partials/header', {pageTitle: 'Pings & Notifications', pageDesc: 'Configurez les rôles de ping que les membres choisissent à l\'arrivée', saved: saved}) %>
+
+<style>
+.ping-list { display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
+.ping-item { background:var(--elevated); border-radius:10px; padding:16px 18px; display:flex; align-items:center; gap:14px; }
+.ping-item-emoji { font-size:22px; width:36px; text-align:center; flex-shrink:0; }
+.ping-item-info { flex:1; }
+.ping-item-label { font-size:13px; font-weight:700; color:var(--text); }
+.ping-item-desc { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.ping-item-role { font-size:11px; color:var(--accent); margin-top:2px; }
+.ping-item-actions { display:flex; gap:8px; flex-shrink:0; }
+.btn-sm { padding:5px 12px; font-size:12px; border-radius:6px; border:none; cursor:pointer; font-weight:600; }
+.btn-edit { background:var(--elevated); color:var(--text); border:1px solid var(--border); }
+.btn-edit:hover { background:var(--accent); color:#000; }
+.btn-delete { background:transparent; color:#da373c; border:1px solid rgba(218,55,60,0.3); }
+.btn-delete:hover { background:#da373c; color:#fff; }
+
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; display:none; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal-box { background:var(--surface); border-radius:14px; padding:28px; width:100%; max-width:500px; }
+.modal-title { font-size:15px; font-weight:700; color:var(--text); margin-bottom:20px; }
+.modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+
+.preview-box { background:#313338; border-radius:10px; padding:16px; margin-top:16px; }
+.preview-title { font-size:14px; font-weight:700; color:#f2f3f5; margin-bottom:6px; }
+.preview-desc { font-size:12px; color:#b5bac1; margin-bottom:12px; }
+.preview-btns { display:flex; flex-wrap:wrap; gap:6px; }
+.preview-btn { background:#4f545c; border-radius:4px; padding:5px 12px; font-size:12px; color:#f2f3f5; display:flex; align-items:center; gap:6px; }
+
+.toggle-row { display:flex; align-items:center; justify-content:space-between; background:var(--elevated); border-radius:10px; padding:14px 18px; margin-bottom:20px; }
+.toggle-row label { font-size:13px; color:var(--text-muted); }
+.toggle { position:relative; width:44px; height:24px; flex-shrink:0; }
+.toggle input { opacity:0; width:0; height:0; }
+.slider { position:absolute; inset:0; background:#444; border-radius:24px; cursor:pointer; transition:.2s; }
+.slider:before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+.toggle input:checked + .slider { background:var(--accent); }
+.toggle input:checked + .slider:before { transform:translateX(20px); }
+</style>
+
+<!-- Toggle activation -->
+<form method="POST" action="/dashboard/<%= guild.id %>/pings" style="margin-bottom:8px;">
+  <input type="hidden" name="action" value="toggle">
+  <div class="toggle-row">
+    <div>
+      <strong style="font-size:13px;color:var(--text);">DM d'accueil avec choix des pings</strong>
+      <label style="display:block;margin-top:2px;">Envoie un DM au nouveau membre pour qu'il choisisse ses notifications.</label>
+    </div>
+    <label class="toggle">
+      <input type="checkbox" name="onboardingEnabled" <%= cfg.onboardingEnabled !== false ? 'checked' : '' %> onchange="this.form.submit()">
+      <span class="slider"></span>
+    </label>
+  </div>
+</form>
+
+<!-- Header -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+  <div>
+    <div class="section-title" style="margin-bottom:2px;">📣 Rôles de ping configurés</div>
+    <p class="field-hint" style="margin:0;">Ces rôles apparaîtront dans le DM d'accueil. Le membre coche ceux qu'il veut.</p>
+  </div>
+  <button class="btn btn-gold" type="button" onclick="openModal()">+ Ajouter un ping</button>
+</div>
+
+<!-- Liste des pings -->
+<div class="ping-list">
+  <% if (!(cfg.pingRoles && cfg.pingRoles.length)) { %>
+    <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;background:var(--elevated);border-radius:10px;">
+      Aucun ping configuré. Clique sur "+ Ajouter un ping" pour commencer.
+    </div>
+  <% } %>
+  <% (cfg.pingRoles || []).forEach((p, i) => {
+    const role = (roles||[]).find(r => r.id === p.roleId);
+  %>
+    <div class="ping-item">
+      <div class="ping-item-emoji"><%= p.emoji || '🔔' %></div>
+      <div class="ping-item-info">
+        <div class="ping-item-label"><%= p.label %></div>
+        <% if (p.desc) { %><div class="ping-item-desc"><%= p.desc %></div><% } %>
+        <div class="ping-item-role"><%= role ? '@' + role.name : '⚠️ Rôle non trouvé (' + p.roleId + ')' %></div>
+      </div>
+      <div class="ping-item-actions">
+        <button class="btn-sm btn-edit" type="button"
+          onclick="openModal({id:'<%= p.id %>',label:'<%= p.label.replace(/'/g,"\\'") %>',emoji:'<%= p.emoji %>',desc:'<%= (p.desc||'').replace(/'/g,"\\'") %>',roleId:'<%= p.roleId %>'})">
+          Modifier
+        </button>
+        <form method="POST" action="/dashboard/<%= guild.id %>/pings" style="margin:0;" onsubmit="return confirm('Supprimer ce ping ?')">
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="pingId" value="<%= p.id %>">
+          <button class="btn-sm btn-delete" type="submit">Supprimer</button>
+        </form>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<!-- Aperçu DM -->
+<% if (cfg.pingRoles && cfg.pingRoles.length) { %>
+<div class="section-title" style="margin-top:8px;">👁️ Aperçu du DM d'accueil</div>
+<div class="preview-box">
+  <div class="preview-title">👑 Bienvenue sur <%= guild.name %> !</div>
+  <div class="preview-desc">Clique sur les pings que tu veux recevoir — tu pourras changer à tout moment.</div>
+  <div class="preview-btns">
+    <% (cfg.pingRoles || []).forEach(p => { %>
+      <div class="preview-btn"><span><%= p.emoji || '🔔' %></span><span><%= p.label %></span></div>
+    <% }) %>
+  </div>
+</div>
+<% } %>
+
+<!-- Modal -->
+<div class="modal-overlay" id="ping-modal">
+  <div class="modal-box">
+    <div class="modal-title">🔔 Configurer un ping</div>
+    <form method="POST" action="/dashboard/<%= guild.id %>/pings" id="ping-form">
+      <input type="hidden" name="action" value="save">
+      <input type="hidden" name="pingId" id="m-id" value="">
+
+      <div class="form-row">
+        <div class="form-group" style="flex:0 0 80px;">
+          <label class="field-label">Emoji</label>
+          <input type="text" name="emoji" id="m-emoji" placeholder="📣" maxlength="4">
+        </div>
+        <div class="form-group">
+          <label class="field-label">Nom du ping</label>
+          <input type="text" name="label" id="m-label" placeholder="Annonces" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Description courte (optionnel)</label>
+        <input type="text" name="desc" id="m-desc" placeholder="Reçois les annonces officielles">
+      </div>
+
+      <div class="form-group">
+        <label class="field-label">Rôle Discord associé</label>
+        <select name="roleId" id="m-role" required>
+          <option value="">— Choisir un rôle —</option>
+          <% (roles||[]).forEach(r => { %>
+            <option value="<%= r.id %>">@<%= r.name %></option>
+          <% }) %>
+        </select>
+        <div class="field-hint">Le rôle qui sera attribué quand le membre coche ce ping.</div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn" style="background:var(--elevated);color:var(--text);" onclick="closeModal()">Annuler</button>
+        <button type="submit" class="btn btn-gold">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openModal(data) {
+  document.getElementById('ping-modal').classList.add('open');
+  if (data) {
+    document.getElementById('m-id').value = data.id || '';
+    document.getElementById('m-emoji').value = data.emoji || '';
+    document.getElementById('m-label').value = data.label || '';
+    document.getElementById('m-desc').value = data.desc || '';
+    document.getElementById('m-role').value = data.roleId || '';
+  } else {
+    document.getElementById('m-id').value = '';
+    document.getElementById('m-emoji').value = '';
+    document.getElementById('m-label').value = '';
+    document.getElementById('m-desc').value = '';
+    document.getElementById('m-role').value = '';
+  }
+}
+function closeModal() {
+  document.getElementById('ping-modal').classList.remove('open');
+}
+document.getElementById('ping-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+</script>
+
+<%- include('../partials/footer') %>
