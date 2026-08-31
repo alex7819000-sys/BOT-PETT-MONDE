@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<%- include('../partials/head', {pageTitle: title || 'Erreur'}) %>
+</head>
+<body>
+  <div class="login-shell">
+    <div class="login-card">
+      <div class="login-crown">⚠️</div>
+      <h1><%= title || 'Erreur' %></h1>
+      <p class="tag"><%= message %></p>
+      <a href="/servers" class="btn btn-ghost btn-block">← Retour aux serveurs</a>
+    </div>
+  </div>
+</body>
+</html>
