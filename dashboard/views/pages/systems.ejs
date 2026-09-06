@@ -1,0 +1,8 @@
+<%- include('../partials/header', {pageTitle: 'Autres systèmes', pageDesc: 'Salons de tous les mini-systèmes : confessions, anime, défis, giveaways, médias…', saved: saved}) %>
+
+<form method="POST" action="/dashboard/<%= guild.id %>/systems">
+  <%- include('../partials/config-fields', { groups, cfg, textChannels, categories, roles: [] }) %>
+  <button type="submit" class="btn btn-gold">💾 Enregistrer les modifications</button>
+</form>
+
+<%- include('../partials/footer') %>
