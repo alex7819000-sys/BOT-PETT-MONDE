@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<%- include('./head') %>
+</head>
+<body>
+<div class="app-shell">
+  <%- include('./sidebar') %>
+  <main class="main">
+    <%- include('./topbar') %>
+    <div class="content">
+      <% if (typeof saved !== 'undefined' && saved) { %>
+        <div class="toast-saved">✅ Modifications enregistrées.</div>
+      <% } %>
