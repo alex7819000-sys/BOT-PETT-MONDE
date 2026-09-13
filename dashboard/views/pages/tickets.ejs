@@ -1,0 +1,52 @@
+<%- include('../partials/header', {pageTitle: 'Tickets', pageDesc: 'Support, signalements, partenariats — ouverts et historique', saved: saved}) %>
+
+<form method="POST" action="/dashboard/<%= guild.id %>/tickets" style="margin-bottom:30px;max-width:420px;">
+  <div class="form-group">
+    <label class="field-label">Catégorie de création des tickets</label>
+    <select name="ticketCategoryId">
+      <option value="">— Aucune —</option>
+      <% categories.forEach(c => { %>
+        <option value="<%= c.id %>" <%= cfg.ticketCategoryId === c.id ? 'selected' : '' %>>📁 <%= c.name %></option>
+      <% }) %>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-gold btn-sm">💾 Enregistrer</button>
+</form>
+
+<div class="section-title">🎫 Tickets ouverts (<%= openTickets.length %>)</div>
+<div class="table-wrap" style="margin-bottom:30px;">
+  <table>
+    <thead><tr><th>Membre</th><th>Type</th><th>Pris en charge par</th><th>Ouvert le</th></tr></thead>
+    <tbody>
+      <% if (openTickets.length === 0) { %><tr><td colspan="4" class="empty-row">Aucun ticket ouvert. 🎉</td></tr><% } %>
+      <% openTickets.forEach(t => { %>
+        <tr>
+          <td class="user-cell"><%= t.userId %></td>
+          <td><span class="badge badge-gold"><%= t.type %></span></td>
+          <td class="user-cell"><%= t.claimedBy || '— en attente —' %></td>
+          <td><%= new Date(t.createdAt).toLocaleString('fr-FR') %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<div class="section-title">📁 Historique (30 derniers fermés)</div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Membre</th><th>Type</th><th>Fermé par</th><th>Fermé le</th></tr></thead>
+    <tbody>
+      <% if (closedTickets.length === 0) { %><tr><td colspan="4" class="empty-row">Aucun ticket fermé encore.</td></tr><% } %>
+      <% closedTickets.forEach(t => { %>
+        <tr>
+          <td class="user-cell"><%= t.userId %></td>
+          <td><%= t.type %></td>
+          <td class="user-cell"><%= t.closedBy || '—' %></td>
+          <td><%= t.closedAt ? new Date(t.closedAt).toLocaleString('fr-FR') : '—' %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/footer') %>
