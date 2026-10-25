@@ -1,0 +1,17 @@
+<div class="topbar">
+  <button type="button" class="menu-toggle" data-menu-toggle aria-label="Ouvrir le menu" aria-expanded="false">☰</button>
+  <div class="topbar-title">
+    <h1><%= typeof pageTitle !== 'undefined' ? pageTitle : 'Dashboard' %></h1>
+    <% if (typeof pageDesc !== 'undefined') { %><div class="desc"><%= pageDesc %></div><% } %>
+  </div>
+  <div class="topbar-stats">
+    <div class="topbar-stat">
+      <div class="v"><%= guild.memberCount.toLocaleString('fr-FR') %></div>
+      <div class="l">Membres</div>
+    </div>
+    <div class="topbar-stat">
+      <div class="v"><%= guild.onlineCount.toLocaleString('fr-FR') %></div>
+      <div class="l">En ligne</div>
+    </div>
+  </div>
+</div>
