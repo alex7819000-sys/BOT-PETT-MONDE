@@ -1,0 +1,180 @@
+<%- include('../partials/header', {pageTitle: 'Rôles automatiques', pageDesc: 'Configurez les rôles attribués automatiquement', saved: saved}) %>
+
+<style>
+.autorole-tag { display:inline-flex; align-items:center; gap:6px; background:var(--elevated); border:1px solid var(--border); border-radius:20px; padding:5px 12px 5px 8px; font-size:12px; font-weight:600; color:var(--text); margin:4px; }
+.autorole-tag .dot { width:10px; height:10px; border-radius:50%; background:var(--accent); }
+.autorole-tag .remove-btn { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:14px; line-height:1; padding:0; margin-left:2px; }
+.autorole-tag .remove-btn:hover { color:#da373c; }
+.role-chip-list { display:flex; flex-wrap:wrap; align-items:center; min-height:44px; background:var(--elevated); border:1px solid var(--border); border-radius:8px; padding:6px 10px; gap:4px; }
+.role-chip-add { display:flex; align-items:center; gap:8px; margin-top:8px; }
+.role-chip-add select { flex:1; }
+.special-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media(max-width:700px) { .special-grid { grid-template-columns:1fr; } }
+.special-card { background:var(--elevated); border-radius:10px; padding:16px; }
+.special-card .card-icon { font-size:22px; margin-bottom:6px; }
+.special-card .card-title { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
+.special-card .card-desc { font-size:11px; color:var(--text-muted); margin-bottom:10px; }
+</style>
+
+<form method="POST" action="/dashboard/<%= guild.id %>/autoroles">
+
+  <!-- ── RÔLES À L'ARRIVÉE ───────────────────────── -->
+  <div class="section-title">👋 Rôles à l'arrivée</div>
+  <p class="field-hint" style="margin-bottom:16px;">Ces rôles sont attribués automatiquement à chaque nouveau membre qui rejoint le serveur.</p>
+
+  <div class="form-group">
+    <label class="field-label">Rôle principal (Membre)</label>
+    <select name="membreRoleId">
+      <option value="">— Aucun —</option>
+      <% (roles||[]).forEach(r => { %>
+        <option value="<%= r.id %>" <%= cfg.membreRoleId === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+      <% }) %>
+    </select>
+    <div class="field-hint">Le rôle de base donné à chaque arrivant.</div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="field-label">Rôle additionnel 1</label>
+      <select name="joinRole1">
+        <option value="">— Aucun —</option>
+        <% (roles||[]).forEach(r => { %>
+          <option value="<%= r.id %>" <%= (cfg.joinRoleIds||[])[0] === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="field-label">Rôle additionnel 2</label>
+      <select name="joinRole2">
+        <option value="">— Aucun —</option>
+        <% (roles||[]).forEach(r => { %>
+          <option value="<%= r.id %>" <%= (cfg.joinRoleIds||[])[1] === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+        <% }) %>
+      </select>
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="field-label">Rôle additionnel 3</label>
+    <select name="joinRole3">
+      <option value="">— Aucun —</option>
+      <% (roles||[]).forEach(r => { %>
+        <option value="<%= r.id %>" <%= (cfg.joinRoleIds||[])[2] === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+      <% }) %>
+    </select>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:28px 0;">
+
+  <!-- ── RÔLES EN VOCAL ─────────────────────────── -->
+  <div class="section-title">🎙️ Rôles en vocal</div>
+  <p class="field-hint" style="margin-bottom:16px;">Ce rôle est attribué dès qu'un membre rejoint un salon vocal, et retiré quand il part.</p>
+
+  <div class="form-group">
+    <label class="field-label">Rôle vocal actif</label>
+    <select name="voiceRoleId">
+      <option value="">— Aucun —</option>
+      <% (roles||[]).forEach(r => { %>
+        <option value="<%= r.id %>" <%= cfg.voiceRoleId === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+      <% }) %>
+    </select>
+    <div class="field-hint">Retiré automatiquement dès que le membre quitte le vocal.</div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:28px 0;">
+
+  <!-- ── RÔLES SPÉCIAUX / AUTOMATIQUES ─────────── -->
+  <div class="section-title">👑 Rôles spéciaux</div>
+  <p class="field-hint" style="margin-bottom:16px;">Ces rôles sont gérés automatiquement par le bot selon les événements du serveur.</p>
+
+  <div class="special-grid">
+
+    <div class="special-card">
+      <div class="card-icon">💬</div>
+      <div class="card-title">Champion Textuel du jour</div>
+      <div class="card-desc">Attribué chaque nuit à 00h00 au membre avec le plus d'XP gagné en messages ce jour-là. Retiré au précédent détenteur automatiquement.</div>
+      <select name="podiumTextChampionRoleId">
+        <option value="">— Aucun —</option>
+        <% (roles||[]).forEach(r => { %>
+          <option value="<%= r.id %>" <%= cfg.podiumTextChampionRoleId === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="special-card">
+      <div class="card-icon">🎙️</div>
+      <div class="card-title">Champion Vocal du jour</div>
+      <div class="card-desc">Attribué chaque nuit à 00h00 au membre avec le plus de temps passé en vocal ce jour-là. Retiré au précédent détenteur automatiquement.</div>
+      <select name="podiumVoiceChampionRoleId">
+        <option value="">— Aucun —</option>
+        <% (roles||[]).forEach(r => { %>
+          <option value="<%= r.id %>" <%= cfg.podiumVoiceChampionRoleId === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="special-card">
+      <div class="card-icon">💎</div>
+      <div class="card-title">Rôle King (permanent)</div>
+      <div class="card-desc">Rôle de distinction haut rang, attribué manuellement ou par commande staff.</div>
+      <select name="kingRoleId">
+        <option value="">— Aucun —</option>
+        <% (roles||[]).forEach(r => { %>
+          <option value="<%= r.id %>" <%= cfg.kingRoleId === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="special-card">
+      <div class="card-icon">🐒</div>
+      <div class="card-title">Rôle Singe</div>
+      <div class="card-desc">Attribué automatiquement en punition (fautes counting, comportement, etc.).</div>
+      <select name="singeRoleId">
+        <option value="">— Aucun —</option>
+        <% (roles||[]).forEach(r => { %>
+          <option value="<%= r.id %>" <%= cfg.singeRoleId === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="special-card">
+      <div class="card-icon">💑</div>
+      <div class="card-title">Rôle Couple</div>
+      <div class="card-desc">Attribué aux membres en couple via la commande /couple.</div>
+      <select name="coupleRoleId">
+        <option value="">— Aucun —</option>
+        <% (roles||[]).forEach(r => { %>
+          <option value="<%= r.id %>" <%= cfg.coupleRoleId === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="special-card">
+      <div class="card-icon">🚀</div>
+      <div class="card-title">Rôle Boosteur</div>
+      <div class="card-desc">Attribué automatiquement aux membres qui boostent le serveur.</div>
+      <select name="boostRoleId">
+        <option value="">— Aucun —</option>
+        <% (roles||[]).forEach(r => { %>
+          <option value="<%= r.id %>" <%= cfg.boostRoleId === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+    <div class="special-card">
+      <div class="card-icon">📣</div>
+      <div class="card-title">Rôle Bumpeur</div>
+      <div class="card-desc">Attribué au membre qui fait le /bump Disboard avec succès.</div>
+      <select name="bumperRoleId">
+        <option value="">— Aucun —</option>
+        <% (roles||[]).forEach(r => { %>
+          <option value="<%= r.id %>" <%= cfg.bumperRoleId === r.id ? 'selected' : '' %>>@<%= r.name %></option>
+        <% }) %>
+      </select>
+    </div>
+
+  </div>
+
+  <button type="submit" class="btn btn-gold" style="margin-top:24px;">💾 Enregistrer tous les rôles</button>
+</form>
+
+<%- include('../partials/footer') %>
